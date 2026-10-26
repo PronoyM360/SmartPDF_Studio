@@ -1,0 +1,29 @@
+.host {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.stageTextCursor {
+  cursor: crosshair;
+}
+
+.stageMaskCursor {
+  cursor: crosshair;
+}
+
+.stageImageCursor {
+  cursor: copy;
+}
+
+.stageDefaultCursor {
+  cursor: default;
+}
+
+.stageSelectCursor {
+  cursor: default;
+}
+
+.stagePanPassThrough {
+  pointer-events: none;
+}

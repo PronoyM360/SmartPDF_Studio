@@ -1,0 +1,18 @@
+.form {
+  margin-top: 4px;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.meta {
+  font-size: 0.78rem;
+  color: var(--sps-text-muted);
+}
+
+.hint {
+  display: block;
+  font-size: 0.72rem;
+  margin-bottom: 8px;
+}

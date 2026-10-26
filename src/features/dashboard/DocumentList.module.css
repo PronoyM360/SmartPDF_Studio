@@ -1,0 +1,35 @@
+.list {
+  background: var(--sps-surface);
+  border: 1px solid var(--sps-border);
+  border-radius: 8px;
+}
+
+.item {
+  padding-inline: 14px !important;
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--sps-surface-muted);
+  color: var(--sps-accent);
+  font-size: 18px;
+}
+
+.fileName {
+  font-size: 0.88rem;
+}
+
+.meta {
+  font-size: 0.78rem;
+  color: var(--sps-text-muted);
+}
+
+.sampleTag {
+  color: var(--sps-text-muted);
+  background: var(--sps-surface-muted);
+}

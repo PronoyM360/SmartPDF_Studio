@@ -1,0 +1,17 @@
+:root {
+  --sps-canvas: #eef1f6;
+  --sps-surface: #ffffff;
+  --sps-surface-muted: #f8fafc;
+  --sps-border: #e2e8f0;
+  --sps-text-strong: #0f172a;
+  --sps-text-muted: #64748b;
+  --sps-accent: #2563eb;
+  --sps-accent-soft: rgba(37, 99, 235, 0.1);
+  --sps-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --sps-radius-sm: 6px;
+  --sps-radius-md: 8px;
+  --sps-space-1: 4px;
+  --sps-space-2: 8px;
+  --sps-space-3: 12px;
+  --sps-space-4: 16px;
+}

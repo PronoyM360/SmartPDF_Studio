@@ -1,0 +1,23 @@
+.root {
+  min-height: 320px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+}
+
+.stack {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  margin: 0 auto;
+}
+
+.overlayLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

@@ -1,0 +1,123 @@
+.root,
+.rootCollapsed {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--sps-surface);
+  border-right: 1px solid var(--sps-border);
+}
+
+.root {
+  width: 168px;
+  flex-shrink: 0;
+}
+
+.rootCollapsed {
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid var(--sps-border);
+}
+
+.title {
+  font-size: 0.82rem;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--sps-border);
+}
+
+.pageIndicator {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.thumbs {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.thumb,
+.thumbActive {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--sps-border);
+  background: var(--sps-surface-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.thumbActive {
+  border-color: var(--sps-accent);
+  box-shadow: 0 0 0 1px var(--sps-accent-soft);
+}
+
+.thumbPreview {
+  display: block;
+  aspect-ratio: 3 / 4;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  border: 1px dashed var(--sps-border);
+}
+
+.thumbLabel {
+  font-size: 0.72rem;
+  color: var(--sps-text-muted);
+  text-align: center;
+}
+
+.thumbLoading {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.thumbStatic,
+.thumbStaticActive {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--sps-border);
+  background: var(--sps-surface-muted);
+  opacity: 0.65;
+}
+
+.thumbStaticActive {
+  border-color: var(--sps-accent);
+}
+
+.thumbPreview {
+  display: block;
+  aspect-ratio: 3 / 4;
+  border-radius: 4px;
+  background: #f1f5f9;
+  border: 1px dashed var(--sps-border);
+}
+
+.thumbLabel {
+  font-size: 0.72rem;
+  color: var(--sps-text-muted);
+  text-align: center;
+}

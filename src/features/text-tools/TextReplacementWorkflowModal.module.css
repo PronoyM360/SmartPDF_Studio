@@ -1,0 +1,15 @@
+.fidelityTag {
+  margin-bottom: 4px;
+}
+
+.metaGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+}
+
+.notes {
+  margin: 10px 0 0;
+  padding-left: 18px;
+}

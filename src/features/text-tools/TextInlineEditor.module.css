@@ -1,0 +1,14 @@
+.editor {
+  position: absolute;
+  margin: 0;
+  padding: 4px 6px;
+  border: 1px solid var(--sps-accent);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.96);
+  resize: none;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--sps-accent-soft);
+  z-index: 5;
+  line-height: 1.35;
+  overflow: auto;
+}

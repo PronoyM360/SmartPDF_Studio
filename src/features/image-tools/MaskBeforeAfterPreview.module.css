@@ -1,0 +1,25 @@
+.root {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 0.68rem;
+  color: var(--sps-text-muted);
+}
+
+.canvas {
+  width: 100%;
+  height: 72px;
+  object-fit: contain;
+  border: 1px solid var(--sps-border);
+  border-radius: 4px;
+  background: var(--sps-surface-muted);
+}

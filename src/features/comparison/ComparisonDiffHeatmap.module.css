@@ -1,0 +1,6 @@
+.heatmap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  image-rendering: pixelated;
+}

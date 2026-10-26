@@ -1,0 +1,41 @@
+.thumb,
+.thumbActive {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid var(--sps-border);
+  background: var(--sps-surface-muted);
+  cursor: pointer;
+  text-align: left;
+}
+
+.thumbActive {
+  border-color: var(--sps-accent);
+  box-shadow: 0 0 0 1px var(--sps-accent-soft);
+}
+
+.preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 96px;
+  border-radius: 4px;
+  background: #ffffff;
+  border: 1px solid var(--sps-border);
+  overflow: hidden;
+}
+
+.canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.label {
+  font-size: 0.72rem;
+  color: var(--sps-text-muted);
+  text-align: center;
+}

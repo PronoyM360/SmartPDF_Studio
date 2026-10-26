@@ -1,0 +1,6 @@
+.root {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--sps-border);
+  background: var(--sps-surface-muted);
+  flex-shrink: 0;
+}

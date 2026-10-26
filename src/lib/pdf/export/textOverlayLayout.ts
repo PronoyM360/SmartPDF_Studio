@@ -1,0 +1,18 @@
+import type { PDFFont } from 'pdf-lib'
+import type { PageRect } from '@/types'
+
+export const TEXT_OVERLAY_LINE_HEIGHT_RATIO = 1.25
+
+/** Baseline Y (PDF user space) for a line, top-aligned like Konva `verticalAlign="top"`. */
+export function textLineBaselineY(
+  bounds: PageRect,
+  font: PDFFont,
+  fontSize: number,
+  lineIndex: number,
+  lineHeight = fontSize * TEXT_OVERLAY_LINE_HEIGHT_RATIO,
+): number {
+  const top = bounds.y + bounds.height
+  const lineTop = top - lineIndex * lineHeight
+  const ascentBlock = font.heightAtSize(fontSize, { descender: false })
+  return lineTop - ascentBlock
+}

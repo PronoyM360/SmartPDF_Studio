@@ -1,0 +1,6 @@
+.host {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  cursor: crosshair;
+}

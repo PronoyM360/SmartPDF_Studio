@@ -1,0 +1,128 @@
+.page {
+  min-height: 100vh;
+  background: var(--sps-canvas);
+  overflow-x: hidden;
+}
+
+.body {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px 16px 32px;
+}
+
+.hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.heroTitle {
+  margin: 0 0 6px !important;
+  font-weight: 600 !important;
+}
+
+.privacySection {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--sps-border);
+}
+
+.privacyText {
+  max-width: 640px;
+  font-size: 0.82rem;
+  margin-bottom: 12px !important;
+}
+
+.recoveryBanner {
+  margin-bottom: 16px;
+}
+
+.recoveryRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.heroText {
+  max-width: 560px;
+  margin-bottom: 0 !important;
+  font-size: 0.88rem;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.errorBlock {
+  margin-bottom: 16px;
+  background: var(--sps-surface);
+  border: 1px solid var(--sps-border);
+  border-radius: 8px;
+}
+
+.recentSection {
+  margin-top: 8px;
+}
+
+.recentHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  margin: 0 0 4px !important;
+}
+
+.sectionHint {
+  font-size: 0.78rem;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.search {
+  width: min(240px, 100%);
+}
+
+.loading,
+.emptyPanel {
+  padding: 28px 16px;
+  background: var(--sps-surface);
+  border: 1px solid var(--sps-border);
+  border-radius: 8px;
+}
+
+@media (max-width: 767px) {
+  .body {
+    padding-inline: 12px;
+  }
+
+  .controls {
+    width: 100%;
+  }
+
+  .search {
+    flex: 1;
+    min-width: 140px;
+  }
+}

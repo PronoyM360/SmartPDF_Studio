@@ -1,0 +1,9 @@
+.row {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.hexInput {
+  width: 96px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}

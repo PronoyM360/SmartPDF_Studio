@@ -1,0 +1,52 @@
+.shell {
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: 24px;
+  border-bottom: 1px solid var(--sps-border);
+  background: var(--sps-surface);
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brandTitle {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--sps-text-strong);
+  letter-spacing: -0.02em;
+}
+
+.brandTagline {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--sps-text-muted);
+}
+
+.content {
+  padding: 24px;
+  background: var(--sps-canvas);
+}
+
+.sider {
+  border-right: 1px solid var(--sps-border);
+  background: var(--sps-surface);
+}
+
+.navLabel {
+  display: block;
+  padding: 12px 16px 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sps-text-muted);
+}

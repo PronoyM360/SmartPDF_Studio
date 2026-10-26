@@ -1,0 +1,58 @@
+.intro {
+  margin: 0 0 12px !important;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.banner {
+  margin-bottom: 12px;
+}
+
+.summaryLine {
+  display: block;
+  font-size: 0.75rem;
+  margin-bottom: 8px;
+}
+
+.list {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--sps-border);
+  border-radius: 8px;
+}
+
+.row {
+  padding-inline: 10px !important;
+}
+
+.detail {
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.iconPassed {
+  color: #16a34a;
+  font-size: 18px;
+}
+
+.iconWarning {
+  color: #d97706;
+  font-size: 18px;
+}
+
+.iconFailed {
+  color: #dc2626;
+  font-size: 18px;
+}
+
+.iconSkipped {
+  color: var(--sps-text-muted);
+  font-size: 18px;
+}

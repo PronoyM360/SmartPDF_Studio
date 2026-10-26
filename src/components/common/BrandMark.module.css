@@ -1,0 +1,31 @@
+.full,
+.compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--sps-accent-soft);
+  color: var(--sps-accent);
+  font-size: 15px;
+}
+
+.name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--sps-text-strong);
+  white-space: nowrap;
+}
+
+.compact .name {
+  font-size: 0.88rem;
+}

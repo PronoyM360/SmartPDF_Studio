@@ -1,0 +1,54 @@
+.root,
+.rootCollapsed {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--sps-surface);
+  border-left: 1px solid var(--sps-border);
+}
+
+.root {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+.rootCollapsed {
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid var(--sps-border);
+}
+
+.title {
+  font-size: 0.82rem;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+}
+
+.toolTitle {
+  margin: 0 0 4px !important;
+  font-size: 0.9rem !important;
+}
+
+.toolDescription {
+  display: block;
+  font-size: 0.78rem;
+  margin-bottom: 12px;
+}
+
+.form {
+  margin-top: 4px;
+}
+

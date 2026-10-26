@@ -1,0 +1,80 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.intro {
+  margin: 0 !important;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.label {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.language {
+  width: 100%;
+}
+
+.note {
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.actions {
+  width: 100%;
+}
+
+.progressBox {
+  padding: 8px;
+  border: 1px solid var(--sps-border);
+  border-radius: 6px;
+  background: var(--sps-surface-muted);
+}
+
+.progressText {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+}
+
+.alert {
+  margin: 0 !important;
+}
+
+.filters {
+  width: 100%;
+}
+
+.list {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--sps-border);
+  border-radius: 6px;
+}
+
+.item,
+.itemActive {
+  padding-inline: 8px !important;
+}
+
+.itemActive {
+  background: var(--sps-accent-soft);
+}
+
+.selection {
+  padding: 10px;
+  border: 1px solid var(--sps-border);
+  border-radius: 6px;
+  background: var(--sps-surface-muted);
+}
+
+.recognized {
+  margin: 6px 0 !important;
+  font-size: 0.82rem;
+}
