@@ -1,0 +1,66 @@
+.root {
+  padding: 8px;
+  border: 1px solid var(--sps-border);
+  border-radius: 6px;
+  background: var(--sps-surface-muted);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.title {
+  font-size: 0.78rem;
+}
+
+.header :global(.ant-btn-link) {
+  padding-inline: 2px;
+  font-size: 0.72rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 4px 6px;
+  border: 1px solid var(--sps-border);
+  border-radius: 4px;
+  background: var(--sps-surface);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.label {
+  font-size: 0.76rem;
+}
+
+.page {
+  font-size: 0.68rem;
+}
+
+.rowText :global(.ant-tag) {
+  margin-inline-end: 0;
+  font-size: 0.64rem;
+  line-height: 16px;
+  padding-inline: 4px;
+}

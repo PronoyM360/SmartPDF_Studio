@@ -4,12 +4,13 @@ import { EDITOR_TOOLS } from '@/app/editorTools'
 import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import { OverlayPropertiesPanel } from '@/features/pdf-editor/components/OverlayPropertiesPanel'
 import { OcrInspectionPanel } from '@/features/ocr/OcrInspectionPanel'
+import { SectionsPanel } from '@/features/sections/SectionsPanel'
 import { PdfTextInspectionPanel } from '@/features/text-tools/PdfTextInspectionPanel'
 import styles from './PropertiesSidebar.module.css'
 
 const { Text, Title } = Typography
 
-export type PropertiesTabKey = 'overlays' | 'pdf-text' | 'ocr'
+export type PropertiesTabKey = 'overlays' | 'pdf-text' | 'ocr' | 'sections'
 
 interface PropertiesSidebarProps {
   collapsed: boolean
@@ -89,6 +90,11 @@ export function PropertiesSidebar({
                 key: 'ocr',
                 label: 'OCR',
                 children: <OcrInspectionPanel />,
+              },
+              {
+                key: 'sections',
+                label: 'Sections',
+                children: <SectionsPanel activePage={activePage} />,
               },
             ]}
           />

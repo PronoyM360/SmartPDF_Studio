@@ -68,6 +68,35 @@ export function pdfRectToScreenRect(
   }
 }
 
+/**
+ * PDF user-space rect → normalized screen box (positive width/height) that stays
+ * correct on 90°/270° rotated pages, where corner order flips.
+ */
+export function pdfRectToScreenBounds(
+  transform: PageDisplayTransform,
+  rect: PageRect,
+): PageRect {
+  const corners = [
+    pdfPointToScreenPoint(transform, { x: rect.x, y: rect.y }),
+    pdfPointToScreenPoint(transform, { x: rect.x + rect.width, y: rect.y }),
+    pdfPointToScreenPoint(transform, { x: rect.x, y: rect.y + rect.height }),
+    pdfPointToScreenPoint(transform, {
+      x: rect.x + rect.width,
+      y: rect.y + rect.height,
+    }),
+  ]
+  const xs = corners.map((point) => point.x)
+  const ys = corners.map((point) => point.y)
+  const minX = Math.min(...xs)
+  const minY = Math.min(...ys)
+  return {
+    x: minX,
+    y: minY,
+    width: Math.max(...xs) - minX,
+    height: Math.max(...ys) - minY,
+  }
+}
+
 /** Screen-aligned box (top-left origin) → PDF user-space bounds (lower-left origin). */
 export function screenRectToPdfRect(
   transform: PageDisplayTransform,

@@ -20,6 +20,7 @@ import {
   overlaySelectionEnabled,
 } from '@/features/pdf-editor/overlayInteraction'
 import type { PageSizePt } from '@/lib/pdf/clampPageRect'
+import { exportableOverlayObjects } from '@/lib/redaction/maskModes'
 import {
   compareOverlayLayerOrder,
   isImageOverlay,
@@ -32,6 +33,8 @@ interface PageOverlayLayerProps {
   pageNumber: number
   pageIndex: number
   renderScale: number
+  /** Omit preview-only (hidden) regions, for views that must match the export. */
+  exportMatchingOnly?: boolean
 }
 
 interface MaskDraft {
@@ -53,6 +56,7 @@ export function PageOverlayLayer({
   pageNumber,
   pageIndex,
   renderScale,
+  exportMatchingOnly = false,
 }: PageOverlayLayerProps) {
   const viewport = usePageViewport(pageNumber, renderScale)
   const {
@@ -84,10 +88,10 @@ export function PageOverlayLayer({
 
   const pageObjects = useMemo(
     () =>
-      overlayObjects
+      (exportMatchingOnly ? exportableOverlayObjects(overlayObjects) : overlayObjects)
         .filter((object) => object.pageIndex === pageIndex)
         .sort(compareOverlayLayerOrder),
-    [overlayObjects, pageIndex],
+    [overlayObjects, pageIndex, exportMatchingOnly],
   )
 
   const editingText = pageObjects.find(

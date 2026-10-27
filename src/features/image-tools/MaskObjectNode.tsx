@@ -1,6 +1,7 @@
 import type Konva from 'konva'
 import { useEffect, useRef } from 'react'
-import { Group, Rect, Transformer } from 'react-konva'
+import { Group, Rect, Text, Transformer } from 'react-konva'
+import { maskModeOf } from '@/lib/redaction/maskModes'
 import { OVERLAY_TRANSFORMER_PROPS } from '@/features/pdf-editor/overlayTransformerStyle'
 import { commitGroupBounds } from '@/features/pdf-editor/overlayTransform'
 import type { PageSizePt } from '@/lib/pdf/clampPageRect'
@@ -32,6 +33,13 @@ export function MaskObjectNode({
   const groupRef = useRef<Konva.Group>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
   const screenRect = pdfRectToScreenRect(transform, object.bounds)
+  const mode = maskModeOf(object)
+  const labelBox = {
+    x: Math.min(0, screenRect.width),
+    y: Math.min(0, screenRect.height),
+    width: Math.abs(screenRect.width),
+    height: Math.abs(screenRect.height),
+  }
 
   useEffect(() => {
     if (!selected || !manipulationEnabled || !transformerRef.current || !groupRef.current) {
@@ -74,11 +82,27 @@ export function MaskObjectNode({
           width={screenRect.width}
           height={screenRect.height}
           fill={object.fillColor}
-          opacity={object.opacity}
-          stroke={selected ? '#64748b' : undefined}
-          strokeWidth={selected ? 1 : 0}
-          dash={selected ? [4, 4] : undefined}
+          opacity={mode === 'cover' ? object.opacity : 1}
+          stroke={selected ? '#64748b' : mode === 'hide' ? '#0d9488' : undefined}
+          strokeWidth={selected || mode === 'hide' ? 1 : 0}
+          dash={selected || mode === 'hide' ? [4, 4] : undefined}
         />
+        {mode !== 'cover' && labelBox.width >= 36 && labelBox.height >= 10 ? (
+          <Text
+            x={labelBox.x}
+            y={labelBox.y}
+            width={labelBox.width}
+            height={labelBox.height}
+            text={mode === 'redact' ? 'REDACT' : 'HIDDEN'}
+            fontSize={Math.min(10, labelBox.height * 0.6)}
+            fontStyle="bold"
+            align="center"
+            verticalAlign="middle"
+            fill={mode === 'redact' ? '#f8fafc' : '#0f766e'}
+            opacity={mode === 'redact' ? 0.85 : 0.7}
+            listening={false}
+          />
+        ) : null}
       </Group>
       {selected && manipulationEnabled ? (
         <Transformer

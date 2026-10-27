@@ -32,7 +32,7 @@ import { toUserFacingPdfError } from '@/lib/pdf'
 import type { EditorToolId } from '@/types'
 import type { PagePoint, PageRect } from '@/types'
 import type { ImageOverlayObject, ImageOverlayPatch } from '@/types/imageOverlay'
-import type { MaskOverlayObject, MaskOverlayPatch } from '@/types/maskOverlay'
+import type { MaskMode, MaskOverlayObject, MaskOverlayPatch } from '@/types/maskOverlay'
 import type { OverlayObject } from '@/types/overlayObjects'
 import type { TextOverlayObject, TextOverlayPatch } from '@/types/textOverlay'
 
@@ -69,6 +69,10 @@ interface EditorSessionContextValue {
     pageIndex: number,
     bounds: PageRect,
   ) => MaskOverlayObject
+  /** Adds several masks as one undo step. */
+  addMaskObjectsWithBounds: (entries: readonly NewMaskInput[]) => MaskOverlayObject[]
+  /** Removes overlays by id as one undo step. */
+  deleteOverlayObjects: (ids: readonly string[]) => void
   updateTextObject: (
     id: string,
     patch: TextOverlayPatch,
@@ -140,11 +144,21 @@ interface EditorSessionProviderProps {
   children: ReactNode
 }
 
+export interface NewMaskInput {
+  pageIndex: number
+  bounds: PageRect
+  fillColor?: string
+  mode?: MaskMode
+  label?: string
+  sourceSectionId?: string
+}
+
 function createMaskObject(
   pageIndex: number,
   bounds: PageRect,
   fillColor = '#ffffff',
   opacity = 1,
+  extra: Pick<NewMaskInput, 'mode' | 'label' | 'sourceSectionId'> = {},
 ): MaskOverlayObject {
   const now = Date.now()
   return {
@@ -156,6 +170,9 @@ function createMaskObject(
     opacity,
     createdAt: now,
     updatedAt: now,
+    ...(extra.mode && extra.mode !== 'cover' ? { mode: extra.mode } : {}),
+    ...(extra.label ? { label: extra.label } : {}),
+    ...(extra.sourceSectionId ? { sourceSectionId: extra.sourceSectionId } : {}),
   }
 }
 
@@ -398,6 +415,35 @@ export function EditorSessionProvider({
     [applyOverlayUpdate],
   )
 
+  const addMaskObjectsWithBounds = useCallback(
+    (entries: readonly NewMaskInput[]): MaskOverlayObject[] => {
+      const created = entries.map((entry) =>
+        createMaskObject(entry.pageIndex, entry.bounds, entry.fillColor, 1, entry),
+      )
+      if (created.length === 0) {
+        return created
+      }
+      applyOverlayUpdate((prev) => [...prev, ...created])
+      setSelectedObjectId(null)
+      setActiveToolId('select')
+      return created
+    },
+    [applyOverlayUpdate],
+  )
+
+  const deleteOverlayObjects = useCallback(
+    (ids: readonly string[]) => {
+      if (ids.length === 0) {
+        return
+      }
+      const remove = new Set(ids)
+      applyOverlayUpdate((prev) => prev.filter((object) => !remove.has(object.id)))
+      setSelectedObjectId((prev) => (prev && remove.has(prev) ? null : prev))
+      setEditingObjectId((prev) => (prev && remove.has(prev) ? null : prev))
+    },
+    [applyOverlayUpdate],
+  )
+
   const overlayObjectsForTextCorrection = useCallback(
     (input: OverlayTextCorrectionInput): [MaskOverlayObject, TextOverlayObject] => {
       const padding = 2
@@ -617,6 +663,8 @@ export function EditorSessionProvider({
       addTextObjectAtPdfPoint,
       addImageObjectAtPdfPoint,
       addMaskObjectWithBounds,
+      addMaskObjectsWithBounds,
+      deleteOverlayObjects,
       updateTextObject,
       updateImageObject,
       updateMaskObject,
@@ -649,6 +697,8 @@ export function EditorSessionProvider({
       addTextObjectAtPdfPoint,
       addImageObjectAtPdfPoint,
       addMaskObjectWithBounds,
+      addMaskObjectsWithBounds,
+      deleteOverlayObjects,
       updateTextObject,
       updateImageObject,
       updateMaskObject,

@@ -47,7 +47,9 @@ export function EditorStatusBar({
           ? 'Find selectable PDF text; replacements use overlays (original content kept for comparison).'
           : propertiesTabKey === 'ocr'
             ? 'OCR is manual only — draw a region or run this page; overlays do not change the PDF until you apply.'
-            : `${PREVIEW_HINTS[previewMode]} ${TOOL_HINTS[activeToolId]}`
+            : propertiesTabKey === 'sections'
+              ? 'Section types are suggestions — click one to locate it, tick to select, or draw a region if detection misses it.'
+              : `${PREVIEW_HINTS[previewMode]} ${TOOL_HINTS[activeToolId]}`
 
   return (
     <footer className={styles.bar} aria-label="Editor status">

@@ -11,6 +11,8 @@ export interface ExtractedPdfTextItem {
   /** Font size in PDF points when derived from the text transform. */
   readonly fontSizePt: number
   readonly positionReliability: TextPositionReliability
+  /** Baseline direction in PDF user space, degrees counter-clockwise (0 = left-to-right). */
+  readonly directionDeg?: number
 }
 
 export type PdfTextSource = 'pdf_selectable' | 'ocr'

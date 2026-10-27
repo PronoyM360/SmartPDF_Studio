@@ -1,0 +1,12 @@
+.host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.anchor {
+  position: absolute;
+  pointer-events: none;
+  scroll-margin: 48px;
+}

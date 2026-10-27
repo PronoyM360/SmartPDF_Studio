@@ -1,5 +1,7 @@
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons'
-import { Alert, Button, Form, Input, InputNumber, Segmented, Slider, Space } from 'antd'
+import { Alert, Button, Form, Input, InputNumber, Modal, Segmented, Slider, Space } from 'antd'
+import { MASK_MODE_LABELS, maskModeOf } from '@/lib/redaction/maskModes'
+import type { MaskMode } from '@/types/maskOverlay'
 import { useMemo } from 'react'
 import {
   BACKGROUND_PROCESSING_ENGINES,
@@ -52,6 +54,25 @@ export function MaskPropertiesPanel({
   }, [object.pageIndex, viewport])
 
   const fillColorInput = normalizeHexForColorInput(object.fillColor, '#ffffff')
+  const mode = maskModeOf(object)
+
+  const changeMode = (next: MaskMode): void => {
+    if (next === mode) {
+      return
+    }
+    if (next !== 'redact') {
+      updateMaskObject(object.id, { mode: next })
+      return
+    }
+    Modal.confirm({
+      title: 'Turn this box into a redaction?',
+      content:
+        'When you download, this page is flattened to an image with the area filled, so the content underneath is removed. Other text on the same page stops being selectable, and links or form fields on that page are removed. You can undo this.',
+      okText: 'Make redaction',
+      okType: 'danger',
+      onOk: () => updateMaskObject(object.id, { mode: 'redact', opacity: 1 }),
+    })
+  }
 
   const engine = getDefaultBackgroundEngine()
   const enginePreview = engine.describe({
@@ -62,13 +83,29 @@ export function MaskPropertiesPanel({
 
   return (
     <Form layout="vertical" size="small" className={styles.form}>
+      <Form.Item label="What this box does">
+        <Segmented
+          block
+          size="small"
+          value={mode}
+          options={[
+            { value: 'hide', label: 'Hide (preview)' },
+            { value: 'cover', label: 'Cover' },
+            { value: 'redact', label: 'Redact' },
+          ]}
+          onChange={(value) => changeMode(value as MaskMode)}
+        />
+      </Form.Item>
       <Alert
-        type="warning"
+        type={mode === 'cover' ? 'warning' : 'info'}
         showIcon
-        message="Visual cover only"
-        description="Masks hide content in the editor preview and export drawing. They do not securely erase PDF data."
+        message={MASK_MODE_LABELS[mode].short}
+        description={MASK_MODE_LABELS[mode].long}
         className={styles.alert}
       />
+      {object.label ? (
+        <Alert type="info" message={`Applied to: ${object.label}`} className={styles.alert} />
+      ) : null}
 
       <Form.Item label="Background method">
         <Segmented
@@ -136,12 +173,19 @@ export function MaskPropertiesPanel({
         />
       </Form.Item>
 
-      <Form.Item label={`Opacity (${Math.round(object.opacity * 100)}%)`}>
+      <Form.Item
+        label={
+          mode === 'cover'
+            ? `Opacity (${Math.round(object.opacity * 100)}%)`
+            : 'Opacity (always 100% for hide and redact)'
+        }
+      >
         <Slider
           min={0.05}
           max={1}
           step={0.05}
-          value={object.opacity}
+          disabled={mode !== 'cover'}
+          value={mode === 'cover' ? object.opacity : 1}
           onChange={(value) =>
             updateMaskObject(object.id, { opacity: Number(value) }, LIVE)
           }

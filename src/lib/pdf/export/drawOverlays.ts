@@ -10,6 +10,7 @@ import type { MaskOverlayObject } from '@/types/maskOverlay'
 import type { OverlayObject } from '@/types/overlayObjects'
 import { compareOverlayLayerOrder, isImageOverlay, isMaskOverlay, isTextOverlay } from '@/types/overlayObjects'
 import { pageRectsIntersect } from '@/lib/pdf/pageRectIntersect'
+import { maskModeOf } from '@/lib/redaction/maskModes'
 import type { PageRect } from '@/types'
 import type { TextOverlayObject } from '@/types/textOverlay'
 import {
@@ -28,7 +29,7 @@ function drawMask(page: PDFPage, mask: MaskOverlayObject): void {
     width: mask.bounds.width,
     height: mask.bounds.height,
     color: hexToRgbColor(mask.fillColor),
-    opacity: mask.opacity,
+    opacity: maskModeOf(mask) === 'cover' ? mask.opacity : 1,
     borderWidth: 0,
   })
 }

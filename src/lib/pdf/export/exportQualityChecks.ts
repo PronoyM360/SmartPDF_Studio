@@ -11,6 +11,13 @@ import {
 import { validateExportOverlays } from '@/lib/pdf/export/validateExportOverlays'
 import { comparePageFingerprints } from '@/lib/pdf/export/pageFingerprints'
 import type { ImageBytesProvider } from '@/lib/pdf/export/drawOverlays'
+import { openBrowserInspector } from '@/lib/redaction/browserPdfTools'
+import {
+  describeExportedModifications,
+  exportableOverlayObjects,
+} from '@/lib/redaction/maskModes'
+import type { OpenPdfInspector } from '@/lib/redaction/types'
+import { MIN_FILL_COVERAGE } from '@/lib/redaction/verifyRedactedExport'
 
 export type ExportQualityCheckStatus = 'passed' | 'warning' | 'failed' | 'not_checked'
 
@@ -37,6 +44,10 @@ export interface RunExportQualityChecksOptions {
   onProgress?: (message: string) => void
   /** When false (e.g. unit tests without canvas), skips PDF.js render probe. */
   includeRenderProbe?: boolean
+  /** Adds a visible "Modified copy" notice to changed pages. */
+  markModifiedPages?: boolean
+  /** Defaults to the PDF.js + canvas inspector when a browser document exists. */
+  openInspector?: OpenPdfInspector
 }
 
 function item(
@@ -99,8 +110,9 @@ export async function runExportQualityChecks(
     return finalize(checks, null, detail)
   }
 
+  const exportedOverlays = exportableOverlayObjects(options.overlays)
   const validation = validateExportOverlays(
-    options.overlays,
+    exportedOverlays,
     pageCount,
     options.getImageBytes,
   )
@@ -125,7 +137,7 @@ export async function runExportQualityChecks(
     return finalize(checks, null, validation.blockingErrors[0] ?? 'Export blocked.')
   }
 
-  const committedCount = options.overlays.length
+  const committedCount = exportedOverlays.length
   const exportableCount = validation.exportableOverlays.length
   const skippedCount = committedCount - exportableCount
 
@@ -225,6 +237,10 @@ export async function runExportQualityChecks(
       overlays: options.overlays,
       getImageBytes: options.getImageBytes,
       onProgress: options.onProgress,
+      markModifiedPages: options.markModifiedPages,
+      openInspector:
+        options.openInspector ??
+        (typeof document !== 'undefined' ? openBrowserInspector : undefined),
     })
     checks.push(
       item(
@@ -341,6 +357,8 @@ export async function runExportQualityChecks(
     )
   }
 
+  checks.push(...modificationChecks(exportResult, options.markModifiedPages ?? false))
+
   if (includeRender) {
     options.onProgress?.('Rendering export preview…')
     const render = await probeRenderExportedPdf(exportResult.bytes)
@@ -379,8 +397,132 @@ export async function runExportQualityChecks(
   return finalize(checks, exportResult, null)
 }
 
+function pageList(indices: readonly number[]): string {
+  return [...new Set(indices)].map((index) => index + 1).join(', ')
+}
+
+/** Transparency about hidden regions, visual covers, redactions and the modified-copy label. */
+function modificationChecks(
+  result: ExportEditedPdfResult,
+  markModifiedPages: boolean,
+): ExportQualityCheckItem[] {
+  const checks: ExportQualityCheckItem[] = []
+  const { modifications, redaction } = result
+
+  if (modifications.redactions > 0) {
+    const pages = pageList(modifications.redactedPages)
+    if (!redaction) {
+      checks.push(
+        item(
+          'redaction',
+          'Redactions removed content',
+          'failed',
+          'Redactions could not be verified in the exported file, so the download is blocked.',
+        ),
+      )
+    } else if (redaction.ok) {
+      const measured = redaction.fillCoverage
+        .map((entry) => entry.coverage)
+        .filter((value): value is number => value !== null)
+      const coverageNote =
+        measured.length > 0
+          ? ` Rendered redacted areas are at least ${Math.floor(Math.min(...measured) * 100)}% filled.`
+          : ' Fill coverage could not be rendered in this environment.'
+      checks.push(
+        item(
+          'redaction',
+          'Redactions removed content',
+          'passed',
+          `${modifications.redactions} redaction(s) on page ${pages} verified in the reopened file: those pages have no selectable text layer, and ${redaction.checkedNeedleCount} redacted text string(s) were not found anywhere in the file.${coverageNote} Number-only strings and text in unusual font encodings cannot be searched reliably; the text-layer check covers those.`,
+        ),
+      )
+    } else {
+      const reasons: string[] = []
+      if (redaction.pagesWithTextLayer.length > 0) {
+        reasons.push(`page ${pageList(redaction.pagesWithTextLayer)} still has selectable text`)
+      }
+      const lowCoverage = redaction.fillCoverage.filter(
+        (entry) => entry.coverage !== null && entry.coverage < MIN_FILL_COVERAGE,
+      )
+      if (lowCoverage.length > 0) {
+        reasons.push(`a redacted area on page ${pageList(lowCoverage.map((entry) => entry.pageIndex))} is not fully filled`)
+      }
+      if (redaction.hiddenLeaks.length > 0) {
+        const where = [...new Set(redaction.hiddenLeaks.map((leak) => leak.location.replace('_', ' ')))]
+        reasons.push(`redacted text was still found in the file (${where.join(', ')})`)
+      }
+      checks.push(
+        item(
+          'redaction',
+          'Redactions removed content',
+          'failed',
+          `Redaction could not be confirmed: ${reasons.join('; ')}. Download is blocked so the file is not mistaken for a redacted copy.`,
+        ),
+      )
+    }
+    if (redaction && redaction.visibleElsewhere.length > 0) {
+      const sample = redaction.visibleElsewhere[0]!
+      checks.push(
+        item(
+          'redaction_elsewhere',
+          'Redacted text does not appear elsewhere',
+          'warning',
+          `"${sample.needle}" is still visible on page ${pageList(redaction.visibleElsewhere.map((entry) => entry.pageIndex))}, which was not redacted. Redact it there too if it is private.`,
+        ),
+      )
+    }
+  }
+
+  if (modifications.covers > 0) {
+    checks.push(
+      item(
+        'visual_covers',
+        'Visual covers are not redaction',
+        'warning',
+        `${modifications.covers} visual cover(s) hide content only visually. The original text and images are still in the file underneath and can be copied or recovered. Use Redact for private information.`,
+      ),
+    )
+  }
+
+  if (modifications.hidden > 0) {
+    checks.push(
+      item(
+        'hidden_regions',
+        'Hidden regions excluded from download',
+        'passed',
+        `${modifications.hidden} region(s) hidden in the editor preview are not part of the download — the exported pages show that content normally.`,
+      ),
+    )
+  }
+
+  const described = describeExportedModifications(modifications)
+  if (described) {
+    checks.push(
+      markModifiedPages
+        ? item(
+            'modified_label',
+            'Exported copy is marked as modified',
+            'passed',
+            `Changed pages carry a small "Modified copy — ${described}" notice and the document keywords record the changes.`,
+          )
+        : item(
+            'modified_label',
+            'Exported copy is marked as modified',
+            'warning',
+            'The exported copy is not labelled as modified. Turn on labelling if the document is official or will be shared.',
+          ),
+    )
+  }
+  return checks
+}
+
 const CHECK_ORDER = [
   'can_export',
+  'redaction',
+  'redaction_elsewhere',
+  'visual_covers',
+  'hidden_regions',
+  'modified_label',
   'reopen_file',
   'page_count',
   'page_layout',

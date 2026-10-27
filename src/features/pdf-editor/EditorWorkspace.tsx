@@ -1,5 +1,6 @@
 import { Alert, Drawer, Modal, Spin } from 'antd'
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { exportableOverlayObjects } from '@/lib/redaction/maskModes'
 import type { StorageResult } from '@/lib/persistence/idb'
 import { useDocumentLibrary } from '@/app/DocumentLibraryContext'
 import { DocumentComparisonModal } from '@/features/comparison/DocumentComparisonModal'
@@ -8,6 +9,7 @@ import { EditorPersistenceHost, type EditorSaveStatus } from '@/features/persist
 import { RecoverUnsavedWorkModal } from '@/features/persistence/RecoverUnsavedWorkModal'
 import { resolveInitialEditorSession } from '@/features/persistence/resolveInitialEditorSession'
 import { restoreFromPersistedSession } from '@/features/persistence/restoreFromPersistedSession'
+import { DocumentSectionsProvider } from '@/features/sections/DocumentSectionsContext'
 import { formatLastSavedAt } from '@/lib/persistence/formatLastSaved'
 import { PdfTextInspectProvider } from '@/features/text-tools/PdfTextInspectContext'
 import { PdfViewerProvider, usePdfViewer } from '@/features/pdf-viewer/PdfViewerContext'
@@ -352,6 +354,10 @@ function EditorWorkspaceWithTextInspect({
   } = useEditorSession()
   const effectivePageCount =
     status === 'ready' && pageCount > 0 ? pageCount : document.pageCount
+  const exportedOverlayObjects = useMemo(
+    () => exportableOverlayObjects(overlayObjects),
+    [overlayObjects],
+  )
   const [workspaceRenderScale, setWorkspaceRenderScale] = useState(0)
   const [compareOpen, setCompareOpen] = useState(false)
   const [saveStatus, setSaveStatus] = useState<EditorSaveStatus>({
@@ -410,13 +416,24 @@ function EditorWorkspaceWithTextInspect({
     void saveProjectRef.current?.()
   }, [document.source])
 
-  const openPdfTextPanel = useCallback((): void => {
-    setPropertiesTabKey('pdf-text')
-    setPropertiesCollapsed(false)
-    if (layoutMode === 'mobile') {
-      setPropertiesDrawerOpen(true)
-    }
-  }, [layoutMode, setPropertiesCollapsed, setPropertiesDrawerOpen])
+  const openPropertiesTab = useCallback(
+    (key: PropertiesTabKey): void => {
+      setPropertiesTabKey(key)
+      setPropertiesCollapsed(false)
+      if (layoutMode === 'mobile') {
+        setPropertiesDrawerOpen(true)
+      }
+    },
+    [layoutMode, setPropertiesCollapsed, setPropertiesDrawerOpen],
+  )
+  const openPdfTextPanel = useCallback(
+    (): void => openPropertiesTab('pdf-text'),
+    [openPropertiesTab],
+  )
+  const openSectionsPanel = useCallback(
+    (): void => openPropertiesTab('sections'),
+    [openPropertiesTab],
+  )
 
   const handleFitToPage = useCallback((): void => {
     onFitModeChange('page')
@@ -455,6 +472,7 @@ function EditorWorkspaceWithTextInspect({
       onNavigateToPage={setActivePage}
     >
       <OcrSessionProvider activePageIndex={currentPage - 1}>
+      <DocumentSectionsProvider onNavigateToPage={setActivePage}>
       <>
         <EditorWorkspaceChrome
           layoutMode={layoutMode}
@@ -510,7 +528,7 @@ function EditorWorkspaceWithTextInspect({
           onPageChange={setActivePage}
           zoomPercent={zoomPercent}
           fitMode={fitMode}
-          overlayObjects={overlayObjects}
+          overlayObjects={exportedOverlayObjects}
           getImageAsset={getImageAsset}
         />
       <EditorKeyboardHost />
@@ -534,6 +552,7 @@ function EditorWorkspaceWithTextInspect({
             layoutMode={layoutMode}
             propertiesTabKey={propertiesTabKey}
             onOpenPdfTextPanel={openPdfTextPanel}
+            onOpenSectionsPanel={openSectionsPanel}
           />
         ) : null}
         <div className={styles.workspace}>
@@ -542,6 +561,7 @@ function EditorWorkspaceWithTextInspect({
               layoutMode={layoutMode}
               propertiesTabKey={propertiesTabKey}
               onOpenPdfTextPanel={openPdfTextPanel}
+              onOpenSectionsPanel={openSectionsPanel}
             />
           ) : null}
           {showInlineSidebars ? (
@@ -637,6 +657,7 @@ function EditorWorkspaceWithTextInspect({
         </>
       ) : null}
       </>
+      </DocumentSectionsProvider>
       </OcrSessionProvider>
     </PdfTextInspectProvider>
   )

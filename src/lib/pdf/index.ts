@@ -3,6 +3,7 @@ export {
   computeFitScale,
   createPageDisplayTransform,
   pdfPointToScreenPoint,
+  pdfRectToScreenBounds,
   pdfRectToScreenRect,
   screenPointToPdfPoint,
   screenRectToPdfRect,

@@ -4,8 +4,12 @@ import {
   ExclamationCircleFilled,
   MinusCircleOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, List, Modal, Space, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, List, Modal, Space, Spin, Switch, Tag, Tooltip, Typography } from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  describeExportedModifications,
+  summarizeModifications,
+} from '@/lib/redaction/maskModes'
 import {
   exportQualitySummary,
   runExportQualityChecks,
@@ -81,7 +85,10 @@ export function ExportQualityCheckModal({
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState('')
   const [report, setReport] = useState<ExportQualityReport | null>(null)
+  const [markModifiedPages, setMarkModifiedPages] = useState(true)
   const runIdRef = useRef(0)
+  const modifications = summarizeModifications(overlays)
+  const hasExportedChanges = describeExportedModifications(modifications) !== null
 
   const runChecks = useCallback(async () => {
     if (!source) {
@@ -114,6 +121,7 @@ export function ExportQualityCheckModal({
         getImageBytes,
         expectedPageCount,
         onProgress: setProgress,
+        markModifiedPages,
       })
       if (runIdRef.current === runId) {
         setReport(result)
@@ -124,7 +132,7 @@ export function ExportQualityCheckModal({
         setProgress('')
       }
     }
-  }, [source, overlays, getImageBytes, expectedPageCount])
+  }, [source, overlays, getImageBytes, expectedPageCount, markModifiedPages])
 
   useEffect(() => {
     if (open) {
@@ -171,6 +179,31 @@ export function ExportQualityCheckModal({
         Checks run in your browser before download. They do not guarantee identical
         appearance in every PDF viewer.
       </Paragraph>
+
+      {hasExportedChanges ? (
+        <Tooltip title="Adds a small 'Modified copy' note in the bottom margin of each changed page and records the changes in the document keywords. Recommended for official documents.">
+          <Space size={6} className={styles.option}>
+            <Switch
+              size="small"
+              checked={markModifiedPages}
+              disabled={running}
+              onChange={setMarkModifiedPages}
+              aria-label="Label modified pages in the exported copy"
+            />
+            <Text>Label modified pages in the exported copy</Text>
+          </Space>
+        </Tooltip>
+      ) : null}
+
+      {modifications.redactions > 0 ? (
+        <Alert
+          type="info"
+          showIcon
+          message={`Redaction on page ${modifications.redactedPages.map((index) => index + 1).join(', ')}`}
+          description="Those pages are flattened to images in the download so the redacted content is removed, then the file is reopened and checked. Download stays blocked unless every check passes."
+          className={styles.banner}
+        />
+      ) : null}
 
       {running ? (
         <div className={styles.progress}>

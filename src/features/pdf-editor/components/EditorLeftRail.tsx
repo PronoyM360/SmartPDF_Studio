@@ -5,6 +5,7 @@ import {
   HighlightOutlined,
   HolderOutlined,
   PictureOutlined,
+  ProfileOutlined,
 } from '@ant-design/icons'
 import { Tooltip } from 'antd'
 import { useRef, type ReactNode } from 'react'
@@ -13,7 +14,7 @@ import type { EditorToolId } from '@/types'
 import type { PropertiesTabKey } from './PropertiesSidebar'
 import styles from './EditorLeftRail.module.css'
 
-type RailActionId = EditorToolId | 'edit-pdf-text'
+type RailActionId = EditorToolId | 'edit-pdf-text' | 'detect-sections'
 
 interface RailButton {
   id: RailActionId
@@ -25,6 +26,7 @@ interface RailButton {
 const RAIL_BUTTONS: RailButton[] = [
   { id: 'select', label: 'Select', icon: <BorderOutlined />, shortcut: 'V' },
   { id: 'edit-pdf-text', label: 'Edit PDF text', icon: <EditOutlined /> },
+  { id: 'detect-sections', label: 'Detect sections', icon: <ProfileOutlined /> },
   { id: 'text', label: 'Add text', icon: <FontSizeOutlined />, shortcut: 'T' },
   { id: 'image', label: 'Add image', icon: <PictureOutlined /> },
   { id: 'highlight', label: 'Mask / erase area', icon: <HighlightOutlined />, shortcut: 'M' },
@@ -34,12 +36,14 @@ const RAIL_BUTTONS: RailButton[] = [
 interface EditorLeftRailProps {
   propertiesTabKey: PropertiesTabKey
   onOpenPdfTextPanel: () => void
+  onOpenSectionsPanel: () => void
   layoutMode: 'desktop' | 'tablet' | 'mobile'
 }
 
 export function EditorLeftRail({
   propertiesTabKey,
   onOpenPdfTextPanel,
+  onOpenSectionsPanel,
   layoutMode,
 }: EditorLeftRailProps) {
   const {
@@ -59,6 +63,12 @@ export function EditorLeftRail({
       onOpenPdfTextPanel()
       return
     }
+    if (id === 'detect-sections') {
+      setActiveToolId('select')
+      selectObject(null)
+      onOpenSectionsPanel()
+      return
+    }
     if (id === 'image') {
       imageInputRef.current?.click()
       return
@@ -72,6 +82,9 @@ export function EditorLeftRail({
   const isActive = (id: RailActionId): boolean => {
     if (id === 'edit-pdf-text') {
       return propertiesTabKey === 'pdf-text' && activeToolId === 'select'
+    }
+    if (id === 'detect-sections') {
+      return propertiesTabKey === 'sections' && activeToolId === 'select'
     }
     return activeToolId === id
   }

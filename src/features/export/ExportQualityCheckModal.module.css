@@ -15,6 +15,11 @@
   margin-bottom: 12px;
 }
 
+.option {
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+}
+
 .summaryLine {
   display: block;
   font-size: 0.75rem;

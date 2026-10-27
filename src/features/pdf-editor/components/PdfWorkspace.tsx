@@ -18,6 +18,8 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { PageOverlayLayer } from '@/features/pdf-editor/PageOverlayLayer'
 import { OcrHighlightLayer } from '@/features/ocr/OcrHighlightLayer'
 import { OcrRegionSelectLayer } from '@/features/ocr/OcrRegionSelectLayer'
+import { SectionHighlightLayer } from '@/features/sections/SectionHighlightLayer'
+import { SectionRegionSelectLayer } from '@/features/sections/SectionRegionSelectLayer'
 import { PendingTextReplacementPreviewLayer } from '@/features/text-tools/PendingTextReplacementPreviewLayer'
 import { TextInspectHighlightLayer } from '@/features/text-tools/TextInspectHighlightLayer'
 import { PdfPageCanvas } from '@/features/pdf-viewer/PdfPageCanvas'
@@ -48,6 +50,7 @@ interface PageCanvasStackProps {
   showCommittedOverlays: boolean
   showInspectLayers: boolean
   showPendingReplacement: boolean
+  exportMatchingOnly?: boolean
 }
 
 function PageCanvasStack({
@@ -57,6 +60,7 @@ function PageCanvasStack({
   showCommittedOverlays,
   showInspectLayers,
   showPendingReplacement,
+  exportMatchingOnly = false,
 }: PageCanvasStackProps) {
   return (
     <div className={styles.pageStack}>
@@ -73,6 +77,11 @@ function PageCanvasStack({
             pageIndex={pageIndex}
             renderScale={renderScale}
           />
+          <SectionHighlightLayer
+            pageNumber={pageNumber}
+            pageIndex={pageIndex}
+            renderScale={renderScale}
+          />
         </>
       ) : null}
       {showCommittedOverlays ? (
@@ -81,8 +90,14 @@ function PageCanvasStack({
             pageNumber={pageNumber}
             pageIndex={pageIndex}
             renderScale={renderScale}
+            exportMatchingOnly={exportMatchingOnly}
           />
           <OcrRegionSelectLayer
+            pageNumber={pageNumber}
+            pageIndex={pageIndex}
+            renderScale={renderScale}
+          />
+          <SectionRegionSelectLayer
             pageNumber={pageNumber}
             pageIndex={pageIndex}
             renderScale={renderScale}
@@ -274,6 +289,7 @@ export function PdfWorkspace({
             showCommittedOverlays={showCommittedOverlays}
             showInspectLayers={showInspectLayers}
             showPendingReplacement={showPendingReplacement}
+            exportMatchingOnly
           />
         </div>
       </div>
