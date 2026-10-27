@@ -24,14 +24,24 @@ function resolveStandardFont(
   return isBold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica
 }
 
+/** First family in a CSS list that has a standard PDF equivalent, else the first family. */
+function pickKnownFamily(fontFamily: string): string {
+  const families = fontFamily
+    .split(',')
+    .map((family) => family.trim().replace(/^["']|["']$/g, ''))
+    .filter(Boolean)
+  return families.find((family) => STANDARD_FONT_BY_FAMILY[family]) ?? families[0] ?? fontFamily
+}
+
 export async function resolvePdfFont(
   pdfDoc: PDFDocument,
-  fontFamily: string,
+  fontFamilyList: string,
   cache: Map<StandardFonts, PDFFont>,
   warnedFamilies: Set<string>,
   warnings: string[],
   fontWeight?: 'normal' | 'bold',
 ): Promise<PDFFont> {
+  const fontFamily = pickKnownFamily(fontFamilyList)
   const standard = resolveStandardFont(fontFamily, fontWeight)
   const cacheKey = standard
   if (!STANDARD_FONT_BY_FAMILY[fontFamily] && !warnedFamilies.has(fontFamily)) {

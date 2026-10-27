@@ -1,4 +1,4 @@
-import type { PageRect } from './coordinates'
+import type { PagePoint, PageRect } from './coordinates'
 
 export type TextPositionReliability = 'high' | 'low'
 
@@ -13,6 +13,10 @@ export interface ExtractedPdfTextItem {
   readonly positionReliability: TextPositionReliability
   /** Baseline direction in PDF user space, degrees counter-clockwise (0 = left-to-right). */
   readonly directionDeg?: number
+  /** Text origin (start of the baseline) from the PDF text matrix. */
+  readonly baseline?: PagePoint
+  /** Advance width reported by PDF.js, in PDF points. */
+  readonly advanceWidth?: number
 }
 
 export type PdfTextSource = 'pdf_selectable' | 'ocr'

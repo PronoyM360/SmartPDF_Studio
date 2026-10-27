@@ -1,5 +1,6 @@
 import type { PageRect } from './coordinates'
 import type { EditingObjectId } from './editingObjects'
+import type { AmountAmendment } from './priceEditing'
 
 export type TextAlignment = 'left' | 'center' | 'right'
 
@@ -19,6 +20,10 @@ export interface TextOverlayObject {
   readonly backgroundOpacity?: number
   readonly alignment: TextAlignment
   readonly fontWeight?: 'normal' | 'bold'
+  /** Extra space after each character, in PDF points. */
+  readonly letterSpacing?: number
+  /** Set when this overlay replaces a printed amount (marks the export as a modified copy). */
+  readonly amendment?: AmountAmendment
   readonly createdAt: number
   readonly updatedAt: number
 }

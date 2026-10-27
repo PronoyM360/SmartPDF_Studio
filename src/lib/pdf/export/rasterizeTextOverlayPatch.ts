@@ -2,6 +2,8 @@ import type { PageRect } from '@/types'
 import type { MaskOverlayObject } from '@/types/maskOverlay'
 import type { TextOverlayObject } from '@/types/textOverlay'
 import { normalizeHexForColorInput } from './colorUtils'
+import { resolveOverlayFont } from './overlayFontResolution'
+import { konvaFirstBaselineOffset } from './textOverlayLayout'
 
 const DEFAULT_PIXELS_PER_POINT = 2
 
@@ -93,23 +95,39 @@ export async function rasterizeTextOverlayPatch(
   }
 
   const { r, g, b } = parseHexRgb(text.color)
-  const fontWeight = text.fontWeight === 'bold' ? 'bold' : 'normal'
+  const font = resolveOverlayFont(text)
   ctx.fillStyle = `rgb(${r}, ${g}, ${b})`
-  ctx.font = `${fontWeight} ${text.fontSize}px ${text.fontFamily}, sans-serif`
-  ctx.textBaseline = 'top'
-  ctx.textAlign = text.alignment
+  ctx.font = `${font.weight} ${text.fontSize}px ${font.family}, sans-serif`
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign = 'left'
 
-  const localTextX =
-    text.alignment === 'center'
-      ? text.bounds.x - union.x + text.bounds.width / 2
-      : text.alignment === 'right'
-        ? text.bounds.x - union.x + text.bounds.width
-        : text.bounds.x - union.x
-  const localTextY = localY(union, text.bounds)
+  const boxLeft = text.bounds.x - union.x
+  const firstBaseline = localY(union, text.bounds) + konvaFirstBaselineOffset(ctx, text.fontSize)
+  const spacing = text.letterSpacing ?? 0
   const lines = text.content.split('\n')
   const lineHeight = text.fontSize * 1.25
   for (let index = 0; index < lines.length; index += 1) {
-    ctx.fillText(lines[index] ?? '', localTextX, localTextY + index * lineHeight)
+    const line = lines[index] ?? ''
+    const chars = [...line]
+    // Same as Konva: with letter spacing, glyphs are placed one by one and the line
+    // width counts one spacing per character.
+    const widths = spacing ? chars.map((char) => ctx.measureText(char).width) : []
+    const lineWidth = ctx.measureText(line).width + spacing * chars.length
+    let x = boxLeft
+    if (text.alignment === 'center') {
+      x = boxLeft + (text.bounds.width - lineWidth) / 2
+    } else if (text.alignment === 'right') {
+      x = boxLeft + text.bounds.width - lineWidth
+    }
+    const y = firstBaseline + index * lineHeight
+    if (!spacing) {
+      ctx.fillText(line, x, y)
+      continue
+    }
+    chars.forEach((char, charIndex) => {
+      ctx.fillText(char, x, y)
+      x += (widths[charIndex] ?? 0) + spacing
+    })
   }
 
   return new Promise((resolve) => {

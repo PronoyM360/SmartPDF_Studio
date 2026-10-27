@@ -32,6 +32,9 @@ export interface ModificationSummary {
   readonly covers: number
   readonly redactions: number
   readonly textEdits: number
+  /** Text overlays that replace a printed amount (subset excluded from `textEdits`). */
+  readonly amountEdits: number
+  readonly amountEditPages: readonly number[]
   readonly images: number
   readonly redactedPages: readonly number[]
 }
@@ -41,11 +44,25 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
   let covers = 0
   let redactions = 0
   let textEdits = 0
+  let amountEdits = 0
   let images = 0
   const redactedPages = new Set<number>()
+  const amountEditPages = new Set<number>()
+  // Covers paired with an amount edit are part of that edit, not separate covers.
+  const amountMaskIds = new Set(
+    overlays.flatMap((object) => (object.kind === 'text' && object.amendment ? [object.amendment.maskId] : [])),
+  )
   for (const object of overlays) {
     if (object.kind === 'text') {
-      textEdits += 1
+      if (object.amendment) {
+        amountEdits += 1
+        amountEditPages.add(object.pageIndex)
+      } else {
+        textEdits += 1
+      }
+      continue
+    }
+    if (amountMaskIds.has(object.id)) {
       continue
     }
     if (object.kind === 'image') {
@@ -67,6 +84,8 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
     covers,
     redactions,
     textEdits,
+    amountEdits,
+    amountEditPages: [...amountEditPages].sort((a, b) => a - b),
     images,
     redactedPages: [...redactedPages].sort((a, b) => a - b),
   }
@@ -81,6 +100,9 @@ export function describeExportedModifications(summary: ModificationSummary): str
   const parts: string[] = []
   if (summary.redactions > 0) {
     parts.push(plural(summary.redactions, 'redaction'))
+  }
+  if (summary.amountEdits > 0) {
+    parts.push(plural(summary.amountEdits, 'edited amount'))
   }
   if (summary.covers > 0) {
     parts.push(plural(summary.covers, 'visual cover'))

@@ -25,5 +25,6 @@ export function planToOverlayCorrectionInput(input: {
     maskFillColor: plan.maskFillColor,
     maskOpacity: plan.maskOpacity,
     editSource,
+    ...(plan.letterSpacing ? { letterSpacing: plan.letterSpacing } : {}),
   }
 }

@@ -18,6 +18,7 @@ import { ErrorState } from '@/components/common/ErrorState'
 import { PageOverlayLayer } from '@/features/pdf-editor/PageOverlayLayer'
 import { OcrHighlightLayer } from '@/features/ocr/OcrHighlightLayer'
 import { OcrRegionSelectLayer } from '@/features/ocr/OcrRegionSelectLayer'
+import { PriceHighlightLayer } from '@/features/prices/PriceHighlightLayer'
 import { SectionHighlightLayer } from '@/features/sections/SectionHighlightLayer'
 import { SectionRegionSelectLayer } from '@/features/sections/SectionRegionSelectLayer'
 import { PendingTextReplacementPreviewLayer } from '@/features/text-tools/PendingTextReplacementPreviewLayer'
@@ -78,6 +79,11 @@ function PageCanvasStack({
             renderScale={renderScale}
           />
           <SectionHighlightLayer
+            pageNumber={pageNumber}
+            pageIndex={pageIndex}
+            renderScale={renderScale}
+          />
+          <PriceHighlightLayer
             pageNumber={pageNumber}
             pageIndex={pageIndex}
             renderScale={renderScale}

@@ -64,6 +64,22 @@ function colorDistance(a: [number, number, number], b: [number, number, number])
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
 }
 
+function medianColor(pixels: readonly [number, number, number][]): [number, number, number] {
+  const channel = (index: 0 | 1 | 2): number => {
+    const values = pixels.map((pixel) => pixel[index]).sort((a, b) => a - b)
+    return values[Math.floor(values.length / 2)] ?? 255
+  }
+  return [channel(0), channel(1), channel(2)]
+}
+
+function meanColor(pixels: readonly [number, number, number][]): [number, number, number] {
+  const sum = pixels.reduce<[number, number, number]>(
+    (acc, pixel) => [acc[0] + pixel[0], acc[1] + pixel[1], acc[2] + pixel[2]],
+    [0, 0, 0],
+  )
+  return [sum[0] / pixels.length, sum[1] / pixels.length, sum[2] / pixels.length]
+}
+
 /**
  * Samples colors from the rendered PDF canvas for a PDF-space rectangle.
  * Requires the page to be visible in the editor canvas.
@@ -109,39 +125,33 @@ export function samplePdfRectColors(
   const outer = {
     x: Math.max(0, Math.floor(rect.x - pad)),
     y: Math.max(0, Math.floor(rect.y - pad)),
-    width: Math.min(canvas.width - rect.x + pad, Math.ceil(rect.width + pad * 2)),
-    height: Math.min(canvas.height - rect.y + pad, Math.ceil(rect.height + pad * 2)),
+    width: Math.min(canvas.width - Math.max(0, Math.floor(rect.x - pad)), Math.ceil(rect.width + pad * 2)),
+    height: Math.min(canvas.height - Math.max(0, Math.floor(rect.y - pad)), Math.ceil(rect.height + pad * 2)),
   }
 
   try {
-    const innerX = Math.floor(rect.x + rect.width * 0.25)
-    const innerY = Math.floor(rect.y + rect.height * 0.25)
-    const innerW = Math.max(1, Math.floor(rect.width * 0.5))
-    const innerH = Math.max(1, Math.floor(rect.height * 0.5))
-
     const outerData = context.getImageData(outer.x, outer.y, outer.width, outer.height)
-    const innerData = context.getImageData(innerX, innerY, innerW, innerH)
-
-    const outerAvg = averageColor(outerData.data)
-    const innerAvg = averageColor(innerData.data)
-
-    const cornerSamples: [number, number, number][] = []
-    const corners = [
-      [outer.x, outer.y],
-      [outer.x + outer.width - 1, outer.y],
-      [outer.x, outer.y + outer.height - 1],
-      [outer.x + outer.width - 1, outer.y + outer.height - 1],
-    ] as const
-    for (const [cx, cy] of corners) {
-      const pixel = context.getImageData(cx, cy, 1, 1).data
-      cornerSamples.push([pixel[0] ?? 0, pixel[1] ?? 0, pixel[2] ?? 0])
+    // Ring = padding around the text box; it shows the background without glyphs.
+    const ring: [number, number, number][] = []
+    const inside: [number, number, number][] = []
+    const left = rect.x - outer.x
+    const top = rect.y - outer.y
+    for (let py = 0; py < outer.height; py += 1) {
+      for (let px = 0; px < outer.width; px += 1) {
+        const offset = (py * outer.width + px) * 4
+        const pixel: [number, number, number] = [
+          outerData.data[offset] ?? 0,
+          outerData.data[offset + 1] ?? 0,
+          outerData.data[offset + 2] ?? 0,
+        ]
+        const inRect = px >= left && px < left + rect.width && py >= top && py < top + rect.height
+        ;(inRect ? inside : ring).push(pixel)
+      }
     }
-
-    const cornerSpread = Math.max(
-      ...cornerSamples.map((sample) => colorDistance(sample, outerAvg)),
-    )
+    const background = ring.length > 0 ? medianColor(ring) : averageColor(outerData.data)
+    const ringOutliers = ring.filter((pixel) => colorDistance(pixel, background) > 30).length
     const backgroundKind: BackgroundKind =
-      cornerSpread < 28 ? 'solid' : cornerSpread < 55 ? 'complex' : 'complex'
+      ring.length > 0 && ringOutliers / ring.length <= 0.08 ? 'solid' : 'complex'
 
     if (backgroundKind === 'complex') {
       notes.push(
@@ -149,11 +159,16 @@ export function samplePdfRectColors(
       )
     }
 
-    const backgroundColor = rgbToHex(outerAvg[0], outerAvg[1], outerAvg[2])
-    const textColor =
-      colorDistance(innerAvg, outerAvg) > 18
-        ? rgbToHex(innerAvg[0], innerAvg[1], innerAvg[2])
-        : null
+    const backgroundColor = rgbToHex(background[0], background[1], background[2])
+    // Anti-aliased glyph edges blend with the background; the most distinct pixels
+    // are closest to the real ink colour.
+    const ranked = inside
+      .map((pixel) => ({ pixel, distance: colorDistance(pixel, background) }))
+      .filter((entry) => entry.distance > 18)
+      .sort((a, b) => b.distance - a.distance)
+    const core = ranked.slice(0, Math.max(1, Math.ceil(ranked.length * 0.2)))
+    const ink = core.length > 0 && ranked.length >= 3 ? meanColor(core.map((entry) => entry.pixel)) : null
+    const textColor = ink ? rgbToHex(ink[0], ink[1], ink[2]) : null
 
     if (!textColor) {
       notes.push(

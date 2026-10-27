@@ -23,6 +23,8 @@ export interface TextReplacementPlan {
   readonly maskOpacity: number
   readonly fidelityStatus: TextEditFidelityStatus
   readonly fidelityNotes: readonly string[]
+  /** Extra space after each character, in PDF points. */
+  readonly letterSpacing?: number
 }
 
 const DEFAULT_COLOR = '#0f172a'

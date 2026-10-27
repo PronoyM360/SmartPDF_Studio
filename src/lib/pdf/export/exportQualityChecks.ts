@@ -495,10 +495,21 @@ function modificationChecks(
     )
   }
 
+  if (modifications.amountEdits > 0) {
+    checks.push(
+      item(
+        'amount_edits',
+        'Edited amounts are identified',
+        'warning',
+        `${modifications.amountEdits} printed amount(s) on page ${pageList(modifications.amountEditPages)} were replaced with overlays. The download is labelled as a modified copy; it is not an original or verified document. The original values remain in the file underneath the covers.`,
+      ),
+    )
+  }
+
   const described = describeExportedModifications(modifications)
   if (described) {
     checks.push(
-      markModifiedPages
+      markModifiedPages || modifications.amountEdits > 0
         ? item(
             'modified_label',
             'Exported copy is marked as modified',
@@ -520,6 +531,7 @@ const CHECK_ORDER = [
   'can_export',
   'redaction',
   'redaction_elsewhere',
+  'amount_edits',
   'visual_covers',
   'hidden_regions',
   'modified_label',

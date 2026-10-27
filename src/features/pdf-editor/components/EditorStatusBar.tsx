@@ -45,6 +45,8 @@ export function EditorStatusBar({
         ? 'Image ready — click the page to place it.'
         : propertiesTabKey === 'pdf-text'
           ? 'Find selectable PDF text; replacements use overlays (original content kept for comparison).'
+          : propertiesTabKey === 'prices'
+            ? 'Pick one detected amount to edit. Other amounts never change automatically; exports are labelled as modified copies.'
           : propertiesTabKey === 'ocr'
             ? 'OCR is manual only — draw a region or run this page; overlays do not change the PDF until you apply.'
             : propertiesTabKey === 'sections'

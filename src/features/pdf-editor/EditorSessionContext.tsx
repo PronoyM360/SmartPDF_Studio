@@ -22,12 +22,12 @@ import {
   validateImageFile,
 } from '@/features/image-tools/validateImageFile'
 import {
-  createTextOverlayObject,
-  DEFAULT_TEXT_COLOR,
-  DEFAULT_TEXT_FONT_FAMILY,
-  DEFAULT_TEXT_FONT_SIZE,
-  MIN_TEXT_BOX_HEIGHT_PT,
-} from '@/features/text-tools/textDefaults'
+  createMaskObject,
+  mergeTextCorrections,
+  prepareTextCorrections,
+  type OverlayTextCorrectionInput,
+} from '@/features/pdf-editor/textCorrectionOverlays'
+import { createTextOverlayObject } from '@/features/text-tools/textDefaults'
 import { toUserFacingPdfError } from '@/lib/pdf'
 import type { EditorToolId } from '@/types'
 import type { PagePoint, PageRect } from '@/types'
@@ -106,21 +106,7 @@ interface EditorSessionContextValue {
   collectImageAssetBytes: () => Record<string, Uint8Array>
 }
 
-export interface OverlayTextCorrectionInput {
-  pageIndex: number
-  bounds: PageRect
-  originalText: string
-  replacementText: string
-  fontSizeHint?: number
-  fontFamily?: string
-  color?: string
-  alignment?: TextOverlayObject['alignment']
-  fontWeight?: TextOverlayObject['fontWeight']
-  maskBounds?: PageRect
-  maskFillColor?: string
-  maskOpacity?: number
-  editSource?: 'pdf_text' | 'ocr'
-}
+export type { OverlayTextCorrectionInput }
 
 const EditorSessionContext = createContext<EditorSessionContextValue | null>(null)
 
@@ -151,29 +137,6 @@ export interface NewMaskInput {
   mode?: MaskMode
   label?: string
   sourceSectionId?: string
-}
-
-function createMaskObject(
-  pageIndex: number,
-  bounds: PageRect,
-  fillColor = '#ffffff',
-  opacity = 1,
-  extra: Pick<NewMaskInput, 'mode' | 'label' | 'sourceSectionId'> = {},
-): MaskOverlayObject {
-  const now = Date.now()
-  return {
-    id: crypto.randomUUID(),
-    kind: 'mask',
-    pageIndex,
-    bounds,
-    fillColor,
-    opacity,
-    createdAt: now,
-    updatedAt: now,
-    ...(extra.mode && extra.mode !== 'cover' ? { mode: extra.mode } : {}),
-    ...(extra.label ? { label: extra.label } : {}),
-    ...(extra.sourceSectionId ? { sourceSectionId: extra.sourceSectionId } : {}),
-  }
 }
 
 export function EditorSessionProvider({
@@ -444,79 +407,23 @@ export function EditorSessionProvider({
     [applyOverlayUpdate],
   )
 
-  const overlayObjectsForTextCorrection = useCallback(
-    (input: OverlayTextCorrectionInput): [MaskOverlayObject, TextOverlayObject] => {
-      const padding = 2
-      const textBounds: PageRect = {
-        x: input.bounds.x,
-        y: input.bounds.y,
-        width: Math.max(input.bounds.width, 24),
-        height: Math.max(input.bounds.height, MIN_TEXT_BOX_HEIGHT_PT),
-      }
-      const maskBounds: PageRect = input.maskBounds ?? {
-        x: Math.max(0, textBounds.x - padding),
-        y: Math.max(0, textBounds.y - padding),
-        width: textBounds.width + padding * 2,
-        height: textBounds.height + padding * 2,
-      }
-      const mask = createMaskObject(
-        input.pageIndex,
-        maskBounds,
-        input.maskFillColor ?? '#ffffff',
-        input.maskOpacity ?? 1,
-      )
-      const fontSize = Math.min(
-        Math.max(input.fontSizeHint ?? DEFAULT_TEXT_FONT_SIZE, 6),
-        120,
-      )
-      const maskFill = input.maskFillColor ?? '#ffffff'
-      const maskOpacity = input.maskOpacity ?? 1
-      const text: TextOverlayObject = {
-        ...createTextOverlayObject(input.pageIndex, textBounds),
-        content: input.replacementText,
-        fontSize,
-        fontFamily: input.fontFamily ?? DEFAULT_TEXT_FONT_FAMILY,
-        color: input.color ?? DEFAULT_TEXT_COLOR,
-        backgroundColor: maskFill,
-        backgroundOpacity: maskOpacity,
-        alignment: input.alignment ?? 'left',
-        fontWeight: input.fontWeight ?? 'normal',
-      }
-      return [mask, text]
-    },
-    [],
-  )
-
-  const applyOverlayTextCorrection = useCallback(
-    (input: OverlayTextCorrectionInput): void => {
-      const [mask, text] = overlayObjectsForTextCorrection(input)
-      applyOverlayUpdate((prev) => [...prev, mask, text])
-      setSelectedObjectId(text.id)
-      setEditingObjectId(null)
-      setActiveToolId('select')
-    },
-    [applyOverlayUpdate, overlayObjectsForTextCorrection],
-  )
-
   const applyOverlayTextCorrections = useCallback(
     (inputs: readonly OverlayTextCorrectionInput[]): void => {
       if (inputs.length === 0) {
         return
       }
-      const additions: OverlayObject[] = []
-      for (const input of inputs) {
-        const [mask, text] = overlayObjectsForTextCorrection(input)
-        additions.push(mask, text)
-      }
-      applyOverlayUpdate((prev) => [...prev, ...additions])
-      const lastText = additions[additions.length - 1]
-      if (lastText) {
-        setSelectedObjectId(lastText.id)
-      }
+      const prepared = prepareTextCorrections(inputs)
+      applyOverlayUpdate((prev) => mergeTextCorrections(prev, prepared))
+      setSelectedObjectId(prepared.added[prepared.added.length - 1]?.id ?? null)
       setEditingObjectId(null)
       setActiveToolId('select')
     },
-    [applyOverlayUpdate, overlayObjectsForTextCorrection],
+    [applyOverlayUpdate],
+  )
+
+  const applyOverlayTextCorrection = useCallback(
+    (input: OverlayTextCorrectionInput): void => applyOverlayTextCorrections([input]),
+    [applyOverlayTextCorrections],
   )
 
   const updateObjectById = useCallback(

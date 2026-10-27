@@ -138,6 +138,7 @@ export function TextObjectNode({
           fontStyle={object.fontWeight === 'bold' ? 'bold' : 'normal'}
           fill={object.color}
           align={object.alignment}
+          letterSpacing={(object.letterSpacing ?? 0) * renderScale}
           verticalAlign="top"
           wrap="word"
           listening={false}

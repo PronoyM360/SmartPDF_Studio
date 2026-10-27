@@ -4,13 +4,14 @@ import { EDITOR_TOOLS } from '@/app/editorTools'
 import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import { OverlayPropertiesPanel } from '@/features/pdf-editor/components/OverlayPropertiesPanel'
 import { OcrInspectionPanel } from '@/features/ocr/OcrInspectionPanel'
+import { PricesPanel } from '@/features/prices/PricesPanel'
 import { SectionsPanel } from '@/features/sections/SectionsPanel'
 import { PdfTextInspectionPanel } from '@/features/text-tools/PdfTextInspectionPanel'
 import styles from './PropertiesSidebar.module.css'
 
 const { Text, Title } = Typography
 
-export type PropertiesTabKey = 'overlays' | 'pdf-text' | 'ocr' | 'sections'
+export type PropertiesTabKey = 'overlays' | 'pdf-text' | 'prices' | 'ocr' | 'sections'
 
 interface PropertiesSidebarProps {
   collapsed: boolean
@@ -85,6 +86,11 @@ export function PropertiesSidebar({
                 key: 'pdf-text',
                 label: 'Find / Replace',
                 children: <PdfTextInspectionPanel />,
+              },
+              {
+                key: 'prices',
+                label: 'Prices',
+                children: <PricesPanel activePage={activePage} />,
               },
               {
                 key: 'ocr',

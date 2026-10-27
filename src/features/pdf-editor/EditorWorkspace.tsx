@@ -9,6 +9,8 @@ import { EditorPersistenceHost, type EditorSaveStatus } from '@/features/persist
 import { RecoverUnsavedWorkModal } from '@/features/persistence/RecoverUnsavedWorkModal'
 import { resolveInitialEditorSession } from '@/features/persistence/resolveInitialEditorSession'
 import { restoreFromPersistedSession } from '@/features/persistence/restoreFromPersistedSession'
+import { PriceEditModal } from '@/features/prices/PriceEditModal'
+import { PriceEditorProvider } from '@/features/prices/PriceEditorContext'
 import { DocumentSectionsProvider } from '@/features/sections/DocumentSectionsContext'
 import { formatLastSavedAt } from '@/lib/persistence/formatLastSaved'
 import { PdfTextInspectProvider } from '@/features/text-tools/PdfTextInspectContext'
@@ -434,6 +436,10 @@ function EditorWorkspaceWithTextInspect({
     (): void => openPropertiesTab('sections'),
     [openPropertiesTab],
   )
+  const openPricesPanel = useCallback(
+    (): void => openPropertiesTab('prices'),
+    [openPropertiesTab],
+  )
 
   const handleFitToPage = useCallback((): void => {
     onFitModeChange('page')
@@ -473,6 +479,7 @@ function EditorWorkspaceWithTextInspect({
     >
       <OcrSessionProvider activePageIndex={currentPage - 1}>
       <DocumentSectionsProvider onNavigateToPage={setActivePage}>
+      <PriceEditorProvider onNavigateToPage={setActivePage}>
       <>
         <EditorWorkspaceChrome
           layoutMode={layoutMode}
@@ -552,6 +559,7 @@ function EditorWorkspaceWithTextInspect({
             layoutMode={layoutMode}
             propertiesTabKey={propertiesTabKey}
             onOpenPdfTextPanel={openPdfTextPanel}
+            onOpenPricesPanel={openPricesPanel}
             onOpenSectionsPanel={openSectionsPanel}
           />
         ) : null}
@@ -561,6 +569,7 @@ function EditorWorkspaceWithTextInspect({
               layoutMode={layoutMode}
               propertiesTabKey={propertiesTabKey}
               onOpenPdfTextPanel={openPdfTextPanel}
+              onOpenPricesPanel={openPricesPanel}
               onOpenSectionsPanel={openSectionsPanel}
             />
           ) : null}
@@ -656,7 +665,9 @@ function EditorWorkspaceWithTextInspect({
           </Drawer>
         </>
       ) : null}
+      <PriceEditModal />
       </>
+      </PriceEditorProvider>
       </DocumentSectionsProvider>
       </OcrSessionProvider>
     </PdfTextInspectProvider>

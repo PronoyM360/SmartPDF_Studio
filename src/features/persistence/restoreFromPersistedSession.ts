@@ -1,3 +1,4 @@
+import { sanitizeRestoredOverlayFonts } from '@/lib/pdf/export/overlayFontResolution'
 import { loadImageBytesForSessionAssets } from '@/lib/persistence/editorSessionStore'
 import type { RestoredEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import type { FitMode } from '@/features/pdf-editor/components/PdfWorkspace'
@@ -43,7 +44,7 @@ export async function restoreFromPersistedSession(
 
   return {
     session: {
-      overlayObjects: persisted.overlayObjects,
+      overlayObjects: sanitizeRestoredOverlayFonts(persisted.overlayObjects),
       imageAssets,
     },
     viewport: {

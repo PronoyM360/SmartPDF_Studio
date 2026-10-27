@@ -1,0 +1,106 @@
+.tags {
+  margin-bottom: 8px;
+}
+
+.alert {
+  margin-bottom: 8px !important;
+}
+
+.originalRow {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.context {
+  margin: -8px 0 10px !important;
+  font-size: 0.75rem;
+  word-break: break-word;
+}
+
+.small {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.beforeAfter {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: -4px 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sps-border);
+  border-radius: 6px;
+  background: var(--sps-surface-muted);
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+.list {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.duplicates {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px dashed var(--sps-border);
+  border-radius: 6px;
+}
+
+.styleBox {
+  margin: 4px 0 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--sps-border);
+  border-radius: 6px;
+}
+
+.styleBox > summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.evidence {
+  margin-top: 6px;
+}
+
+.evidence :global(.ant-descriptions-item-label) {
+  width: 110px;
+  font-size: 0.75rem;
+}
+
+.evidenceDetail {
+  display: block;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
+  margin-top: 6px;
+}
+
+.controls :global(.ant-form-item) {
+  margin-bottom: 8px;
+  min-width: 90px;
+}
+
+.confirm {
+  margin-top: 10px;
+}

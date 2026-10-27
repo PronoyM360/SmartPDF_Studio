@@ -1,4 +1,12 @@
-import { degrees, type PDFDocument, type PDFPage, type PDFFont } from 'pdf-lib'
+import {
+  degrees,
+  popGraphicsState,
+  pushGraphicsState,
+  setCharacterSpacing,
+  type PDFDocument,
+  type PDFPage,
+  type PDFFont,
+} from 'pdf-lib'
 import { hexToRgbColor } from './colorUtils'
 import { resolvePdfFont } from './fontMapping'
 import {
@@ -68,13 +76,15 @@ async function drawTextOverlay(
   warnedFontFamilies: Set<string>,
   warnings: string[],
 ): Promise<void> {
+  // Standard PDF fonts can never be the document's embedded face, so amount edits
+  // use their recorded system fallback (with its real weight) here.
   const font = await resolvePdfFont(
     pdfDoc,
-    object.fontFamily,
+    object.amendment?.fallbackFontFamily ?? object.fontFamily,
     fontCache,
     warnedFontFamilies,
     warnings,
-    object.fontWeight,
+    object.amendment?.fallbackFontWeight ?? object.fontWeight,
   )
   if (object.backgroundColor) {
     page.drawRectangle({
@@ -92,17 +102,25 @@ async function drawTextOverlay(
   const lineHeight = object.fontSize * TEXT_OVERLAY_LINE_HEIGHT_RATIO
   const maxLines = Math.max(1, Math.floor(object.bounds.height / lineHeight))
 
+  const spacing = object.letterSpacing ?? 0
   for (let index = 0; index < Math.min(lines.length, maxLines); index += 1) {
     const line = lines[index] ?? ''
-    const textWidth = font.widthOfTextAtSize(line, object.fontSize)
+    const textWidth = font.widthOfTextAtSize(line, object.fontSize) + spacing * [...line].length
     let x = object.bounds.x
     if (object.alignment === 'center') {
       x = object.bounds.x + (object.bounds.width - textWidth) / 2
     } else if (object.alignment === 'right') {
       x = object.bounds.x + object.bounds.width - textWidth
     }
-    const baselineY = textLineBaselineY(object.bounds, font, object.fontSize, index, lineHeight)
+    const recordedBaseline = object.amendment?.baselineY
+    const baselineY =
+      recordedBaseline !== null && recordedBaseline !== undefined
+        ? recordedBaseline - index * lineHeight
+        : textLineBaselineY(object.bounds, font, object.fontSize, index, lineHeight)
 
+    if (spacing) {
+      page.pushOperators(pushGraphicsState(), setCharacterSpacing(spacing))
+    }
     page.drawText(line, {
       x,
       y: baselineY,
@@ -110,6 +128,9 @@ async function drawTextOverlay(
       font,
       color,
     })
+    if (spacing) {
+      page.pushOperators(popGraphicsState())
+    }
   }
 }
 
@@ -121,7 +142,8 @@ async function drawRasterizedTextPatch(
   union: PageRect,
   warnings: string[],
 ): Promise<boolean> {
-  const png = await rasterizeTextOverlayPatch(text, masks, union)
+  // Amount patches are small, so a higher resolution keeps digits crisp when zoomed.
+  const png = await rasterizeTextOverlayPatch(text, masks, union, text.amendment ? 4 : undefined)
   if (!png) {
     return false
   }

@@ -31,7 +31,7 @@ export interface PageTextAnalysis extends PageGeometry {
   readonly hasImages: boolean | null
 }
 
-const IMAGE_OPS = new Set<number>([
+export const IMAGE_OPS: ReadonlySet<number> = new Set<number>([
   OPS.paintImageXObject,
   OPS.paintInlineImageXObject,
   OPS.paintImageMaskXObject,

@@ -183,7 +183,14 @@ export async function exportEditedPdf(
 
   const documentSummary = describeExportedModifications(modifications)
   let addedTextByPage = new Map<number, string>()
-  if (options.markModifiedPages && documentSummary) {
+  // Changed amounts alter official figures, so the copy is always labelled.
+  const markPages = options.markModifiedPages || modifications.amountEdits > 0
+  if (modifications.amountEdits > 0 && !options.markModifiedPages) {
+    warnings.push(
+      'Edited amounts always add a “Modified copy” notice to the changed pages and the document keywords.',
+    )
+  }
+  if (markPages && documentSummary) {
     const perPage = new Map<number, string>()
     for (let pageIndex = 0; pageIndex < pageCount; pageIndex += 1) {
       const pageSummary = describeExportedModifications(

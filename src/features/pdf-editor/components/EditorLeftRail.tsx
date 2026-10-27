@@ -1,5 +1,6 @@
 import {
   BorderOutlined,
+  DollarOutlined,
   EditOutlined,
   FontSizeOutlined,
   HighlightOutlined,
@@ -14,7 +15,7 @@ import type { EditorToolId } from '@/types'
 import type { PropertiesTabKey } from './PropertiesSidebar'
 import styles from './EditorLeftRail.module.css'
 
-type RailActionId = EditorToolId | 'edit-pdf-text' | 'detect-sections'
+type RailActionId = EditorToolId | 'edit-pdf-text' | 'edit-prices' | 'detect-sections'
 
 interface RailButton {
   id: RailActionId
@@ -26,6 +27,7 @@ interface RailButton {
 const RAIL_BUTTONS: RailButton[] = [
   { id: 'select', label: 'Select', icon: <BorderOutlined />, shortcut: 'V' },
   { id: 'edit-pdf-text', label: 'Edit PDF text', icon: <EditOutlined /> },
+  { id: 'edit-prices', label: 'Edit prices & amounts', icon: <DollarOutlined /> },
   { id: 'detect-sections', label: 'Detect sections', icon: <ProfileOutlined /> },
   { id: 'text', label: 'Add text', icon: <FontSizeOutlined />, shortcut: 'T' },
   { id: 'image', label: 'Add image', icon: <PictureOutlined /> },
@@ -36,6 +38,7 @@ const RAIL_BUTTONS: RailButton[] = [
 interface EditorLeftRailProps {
   propertiesTabKey: PropertiesTabKey
   onOpenPdfTextPanel: () => void
+  onOpenPricesPanel: () => void
   onOpenSectionsPanel: () => void
   layoutMode: 'desktop' | 'tablet' | 'mobile'
 }
@@ -43,6 +46,7 @@ interface EditorLeftRailProps {
 export function EditorLeftRail({
   propertiesTabKey,
   onOpenPdfTextPanel,
+  onOpenPricesPanel,
   onOpenSectionsPanel,
   layoutMode,
 }: EditorLeftRailProps) {
@@ -69,6 +73,12 @@ export function EditorLeftRail({
       onOpenSectionsPanel()
       return
     }
+    if (id === 'edit-prices') {
+      setActiveToolId('select')
+      selectObject(null)
+      onOpenPricesPanel()
+      return
+    }
     if (id === 'image') {
       imageInputRef.current?.click()
       return
@@ -85,6 +95,9 @@ export function EditorLeftRail({
     }
     if (id === 'detect-sections') {
       return propertiesTabKey === 'sections' && activeToolId === 'select'
+    }
+    if (id === 'edit-prices') {
+      return propertiesTabKey === 'prices' && activeToolId === 'select'
     }
     return activeToolId === id
   }

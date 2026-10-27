@@ -89,6 +89,7 @@ export function ExportQualityCheckModal({
   const runIdRef = useRef(0)
   const modifications = summarizeModifications(overlays)
   const hasExportedChanges = describeExportedModifications(modifications) !== null
+  const amountLabelRequired = modifications.amountEdits > 0
 
   const runChecks = useCallback(async () => {
     if (!source) {
@@ -181,18 +182,37 @@ export function ExportQualityCheckModal({
       </Paragraph>
 
       {hasExportedChanges ? (
-        <Tooltip title="Adds a small 'Modified copy' note in the bottom margin of each changed page and records the changes in the document keywords. Recommended for official documents.">
+        <Tooltip
+          title={
+            amountLabelRequired
+              ? 'Required: this copy changes printed amounts, so every changed page gets a "Modified copy" note and the document keywords record the changes.'
+              : "Adds a small 'Modified copy' note in the bottom margin of each changed page and records the changes in the document keywords. Recommended for official documents."
+          }
+        >
           <Space size={6} className={styles.option}>
             <Switch
               size="small"
-              checked={markModifiedPages}
-              disabled={running}
+              checked={markModifiedPages || amountLabelRequired}
+              disabled={running || amountLabelRequired}
               onChange={setMarkModifiedPages}
               aria-label="Label modified pages in the exported copy"
             />
-            <Text>Label modified pages in the exported copy</Text>
+            <Text>
+              Label modified pages in the exported copy
+              {amountLabelRequired ? ' (required for edited amounts)' : ''}
+            </Text>
           </Space>
         </Tooltip>
+      ) : null}
+
+      {amountLabelRequired ? (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${modifications.amountEdits} edited amount${modifications.amountEdits === 1 ? '' : 's'}`}
+          description="Only use this for authorized corrections or internal copies. The download is an edited copy, not an original or verified document; keep the original file for comparison."
+          className={styles.banner}
+        />
       ) : null}
 
       {modifications.redactions > 0 ? (

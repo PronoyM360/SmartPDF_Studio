@@ -80,6 +80,7 @@ export function PendingTextReplacementPreviewLayer({
             fontStyle={plan.fontWeight === 'bold' ? 'bold' : 'normal'}
             fill={plan.color}
             align={plan.alignment}
+            letterSpacing={(plan.letterSpacing ?? 0) * renderScale}
             verticalAlign="top"
             wrap="word"
             listening={false}

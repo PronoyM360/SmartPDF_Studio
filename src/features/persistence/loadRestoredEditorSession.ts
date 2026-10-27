@@ -1,3 +1,4 @@
+import { sanitizeRestoredOverlayFonts } from '@/lib/pdf/export/overlayFontResolution'
 import { loadEditorSession } from '@/lib/persistence/editorSessionStore'
 import type { RestoredEditorSessionPayload } from '@/features/persistence/restoreFromPersistedSession'
 
@@ -32,7 +33,7 @@ export async function loadRestoredEditorSession(
 
   return {
     session: {
-      overlayObjects: session.overlayObjects,
+      overlayObjects: sanitizeRestoredOverlayFonts(session.overlayObjects),
       imageAssets,
     },
     viewport: {

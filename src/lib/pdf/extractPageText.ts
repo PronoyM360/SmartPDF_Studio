@@ -100,6 +100,7 @@ export async function extractPageTextItems(
       continue
     }
     const { bounds, fontSizePt, reliability, directionDeg } = computeTextItemGeometry(raw)
+    const [, , , , originX = 0, originY = 0] = raw.transform
     items.push({
       id: crypto.randomUUID(),
       pageIndex,
@@ -109,6 +110,8 @@ export async function extractPageTextItems(
       fontSizePt,
       positionReliability: reliability,
       directionDeg,
+      baseline: { x: originX, y: originY },
+      advanceWidth: raw.width,
     })
   }
 
