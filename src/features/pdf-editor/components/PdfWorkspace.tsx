@@ -16,6 +16,8 @@ import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PageOverlayLayer } from '@/features/pdf-editor/PageOverlayLayer'
+import { ChangeHighlightLayer } from '@/features/changes/ChangeHighlightLayer'
+import { useTrackedChanges } from '@/features/changes/useTrackedChanges'
 import { OcrHighlightLayer } from '@/features/ocr/OcrHighlightLayer'
 import { OcrRegionSelectLayer } from '@/features/ocr/OcrRegionSelectLayer'
 import { PriceHighlightLayer } from '@/features/prices/PriceHighlightLayer'
@@ -117,6 +119,12 @@ function PageCanvasStack({
           renderScale={renderScale}
         />
       ) : null}
+      <ChangeHighlightLayer
+        pageNumber={pageNumber}
+        pageIndex={pageIndex}
+        renderScale={renderScale}
+        variant={showCommittedOverlays ? 'edited' : 'original'}
+      />
     </div>
   )
 }
@@ -142,7 +150,8 @@ export function PdfWorkspace({
   } | null>(null)
   const [panning, setPanning] = useState(false)
   const { activeToolId } = useEditorSession()
-  const { previewMode } = useEditorPreview()
+  const { previewMode, viewResetToken } = useEditorPreview()
+  const { exportIsModified } = useTrackedChanges()
   const singleViewLayerFlags = useMemo(
     () => workspaceCanvasLayerFlags(previewMode),
     [previewMode],
@@ -217,6 +226,15 @@ export function PdfWorkspace({
     },
     [],
   )
+
+  useEffect(() => {
+    if (viewResetToken === 0) {
+      return
+    }
+    for (const node of [viewportRef.current, leftSplitRef.current, rightSplitRef.current]) {
+      node?.scrollTo({ top: 0, left: 0 })
+    }
+  }, [viewResetToken])
 
   const panActive = activeToolId === 'pan' && previewMode !== 'original'
 
@@ -366,7 +384,7 @@ export function PdfWorkspace({
             <div className={styles.splitRow}>
               <div className={styles.splitPane}>
                 <Text strong className={styles.paneLabel}>
-                  Original upload
+                  Original PDF
                 </Text>
                 {renderPageView('original', leftSplitRef, (event) => {
                   if (rightSplitRef.current) {
@@ -376,7 +394,7 @@ export function PdfWorkspace({
               </div>
               <div className={styles.splitPane}>
                 <Text strong className={styles.paneLabel}>
-                  Committed edits
+                  Edited preview{exportIsModified ? ' · modified copy' : ''}
                 </Text>
                 {renderPageView('edited', rightSplitRef, (event) => {
                   if (leftSplitRef.current) {

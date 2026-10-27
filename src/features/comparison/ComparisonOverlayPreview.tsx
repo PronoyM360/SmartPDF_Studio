@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { Group, Image as KonvaImage, Layer, Rect, Stage, Text } from 'react-konva'
-import type { ImageOverlayObject } from '@/types/imageOverlay'
+import type Konva from 'konva'
+import { useEffect, useMemo, useRef } from 'react'
+import { Layer, Stage } from 'react-konva'
+import { ImageObjectNode } from '@/features/image-tools/ImageObjectNode'
+import { MaskObjectNode } from '@/features/image-tools/MaskObjectNode'
+import { TextObjectNode } from '@/features/text-tools/TextObjectNode'
 import { usePageViewport } from '@/features/text-tools/usePageViewport'
-import { createPageDisplayTransform, pdfRectToScreenRect } from '@/lib/pdf'
-import { hexToRgbaCss } from '@/lib/pdf/export/colorUtils'
-import type { ImageAssetRecord } from '@/features/pdf-editor/EditorSessionContext'
+import { createPageDisplayTransform } from '@/lib/pdf'
 import {
   compareOverlayLayerOrder,
   isImageOverlay,
@@ -19,63 +20,21 @@ interface ComparisonOverlayPreviewProps {
   pageIndex: number
   renderScale: number
   overlayObjects: readonly OverlayObject[]
-  getImageAsset: (assetId: string) => ImageAssetRecord | undefined
-  onStageReady?: (stage: import('konva').default.Stage | null) => void
+  onStageReady?: (stage: Konva.Stage | null) => void
 }
 
-function ComparisonImageNode({
-  object,
-  transform,
-  getImageAsset,
-}: {
-  object: ImageOverlayObject
-  transform: ReturnType<typeof createPageDisplayTransform>
-  getImageAsset: (assetId: string) => ImageAssetRecord | undefined
-}) {
-  const asset = getImageAsset(object.assetId)
-  const [htmlImage, setHtmlImage] = useState<HTMLImageElement | null>(null)
-  const screenRect = pdfRectToScreenRect(transform, object.bounds)
+const noop = (): void => undefined
 
-  useEffect(() => {
-    if (!asset) {
-      setHtmlImage(null)
-      return
-    }
-    const image = new Image()
-    image.onload = () => setHtmlImage(image)
-    image.src = asset.blobUrl
-    return () => {
-      image.onload = null
-    }
-  }, [asset])
-
-  if (!htmlImage) {
-    return null
-  }
-
-  return (
-    <Group
-      x={screenRect.x}
-      y={screenRect.y}
-      rotation={object.rotation}
-      listening={false}
-    >
-      <KonvaImage
-        image={htmlImage}
-        width={screenRect.width}
-        height={screenRect.height}
-        listening={false}
-      />
-    </Group>
-  )
-}
-
+/**
+ * Read-only render of committed overlays using the editor's own nodes, so comparisons
+ * show exactly what the editor (and therefore the export) draws: same PDF-space
+ * coordinates, rotation handling, reconstructed backgrounds and stacking order.
+ */
 export function ComparisonOverlayPreview({
   pageNumber,
   pageIndex,
   renderScale,
   overlayObjects,
-  getImageAsset,
   onStageReady,
 }: ComparisonOverlayPreviewProps) {
   const viewport = usePageViewport(pageNumber, renderScale)
@@ -86,7 +45,7 @@ export function ComparisonOverlayPreview({
     return createPageDisplayTransform(pageIndex, viewport)
   }, [pageIndex, viewport])
 
-  const stageRef = useRef<import('konva').default.Stage | null>(null)
+  const stageRef = useRef<Konva.Stage | null>(null)
 
   const pageObjects = useMemo(
     () =>
@@ -106,6 +65,15 @@ export function ComparisonOverlayPreview({
 
   if (!viewport || !pageTransform || pageObjects.length === 0) {
     return null
+  }
+
+  const shared = {
+    transform: pageTransform,
+    selected: false,
+    manipulationEnabled: false,
+    listeningEnabled: false,
+    pageSize: null,
+    onSelect: noop,
   }
 
   return (
@@ -128,64 +96,21 @@ export function ComparisonOverlayPreview({
         <Layer listening={false}>
           {pageObjects.map((object) => {
             if (isMaskOverlay(object)) {
-              const screen = pdfRectToScreenRect(pageTransform, object.bounds)
-              return (
-                <Rect
-                  key={object.id}
-                  x={screen.x}
-                  y={screen.y}
-                  width={screen.width}
-                  height={screen.height}
-                  fill={object.fillColor}
-                  opacity={object.opacity}
-                  listening={false}
-                />
-              )
+              return <MaskObjectNode key={object.id} object={object} {...shared} onBoundsChange={noop} />
             }
             if (isImageOverlay(object)) {
-              return (
-                <ComparisonImageNode
-                  key={object.id}
-                  object={object}
-                  transform={pageTransform}
-                  getImageAsset={getImageAsset}
-                />
-              )
+              return <ImageObjectNode key={object.id} object={object} {...shared} onChange={noop} />
             }
             if (isTextOverlay(object)) {
-              const screen = pdfRectToScreenRect(pageTransform, object.bounds)
-              const fontSizePx = object.fontSize * renderScale
               return (
-                <Group key={object.id}>
-                  {object.backgroundColor ? (
-                    <Rect
-                      x={screen.x}
-                      y={screen.y}
-                      width={screen.width}
-                      height={screen.height}
-                      fill={hexToRgbaCss(
-                        object.backgroundColor,
-                        object.backgroundOpacity ?? 1,
-                      )}
-                      listening={false}
-                    />
-                  ) : null}
-                  <Text
-                    x={screen.x}
-                    y={screen.y}
-                    width={screen.width}
-                    height={screen.height}
-                    text={object.content}
-                    fontFamily={object.fontFamily}
-                    fontSize={fontSizePx}
-                    fontStyle={object.fontWeight === 'bold' ? 'bold' : 'normal'}
-                    fill={object.color}
-                    align={object.alignment}
-                    verticalAlign="top"
-                    wrap="word"
-                    listening={false}
-                  />
-                </Group>
+                <TextObjectNode
+                  key={object.id}
+                  object={object}
+                  {...shared}
+                  renderScale={renderScale}
+                  onBoundsChange={noop}
+                  onEditRequest={noop}
+                />
               )
             }
             return null

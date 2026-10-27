@@ -127,9 +127,16 @@
   font-size: 0.82rem;
 }
 
+.modifiedTag {
+  margin-left: 8px;
+  font-size: 0.7rem;
+}
+
 .scroll {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 360px;
+  /* Definite height so "fit page" measures the pane, not the page inside it. */
+  height: 58vh;
   max-height: 58vh;
   overflow: auto;
   padding: 12px;
@@ -140,6 +147,7 @@
 }
 
 .modalFullscreen .scroll {
+  height: calc(100vh - 280px);
   max-height: calc(100vh - 280px);
 }
 

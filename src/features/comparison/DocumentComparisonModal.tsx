@@ -4,7 +4,9 @@ import {
   FullscreenOutlined,
   MinusOutlined,
   PlusOutlined,
+  RedoOutlined,
   ReloadOutlined,
+  UndoOutlined,
 } from '@ant-design/icons'
 import type Konva from 'konva'
 import {
@@ -30,7 +32,8 @@ import {
   MIN_ZOOM_PERCENT,
   ZOOM_STEP_PERCENT,
 } from '@/features/pdf-editor/zoomConfig'
-import type { ImageAssetRecord } from '@/features/pdf-editor/EditorSessionContext'
+import { useTrackedChanges } from '@/features/changes/useTrackedChanges'
+import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import { usePdfViewer } from '@/features/pdf-viewer/PdfViewerContext'
 import type { OverlayObject } from '@/types/overlayObjects'
 import styles from './DocumentComparisonModal.module.css'
@@ -47,8 +50,8 @@ interface DocumentComparisonModalProps {
   onPageChange: (page: number) => void
   zoomPercent: number
   fitMode: FitMode
+  /** Export-matching committed overlays (hidden regions removed). */
   overlayObjects: readonly OverlayObject[]
-  getImageAsset: (assetId: string) => ImageAssetRecord | undefined
 }
 
 interface CompareViewSnapshot {
@@ -69,9 +72,10 @@ export function DocumentComparisonModal({
   zoomPercent,
   fitMode,
   overlayObjects,
-  getImageAsset,
 }: DocumentComparisonModalProps) {
   const { pageCount: livePageCount, renderGeneration } = usePdfViewer()
+  const { undo, redo, canUndo, canRedo } = useEditorSession()
+  const { exportIsModified, modifiedLabelRequired } = useTrackedChanges()
   const effectivePageCount = livePageCount || pageCount
 
   const leftScrollRef = useRef<HTMLDivElement>(null)
@@ -221,10 +225,14 @@ export function DocumentComparisonModal({
     >
       <div className={styles.layout}>
         <Alert
-          type="info"
+          type={exportIsModified ? 'warning' : 'info'}
           showIcon
-          message="Visual comparison only"
-          description="Highlighting shows pixel differences between the original page and the preview with overlays. That does not prove native PDF text changed."
+          message={
+            exportIsModified
+              ? `Edited preview — the download is a modified copy${modifiedLabelRequired ? ' and is labelled as one' : ''}`
+              : 'Visual comparison only'
+          }
+          description="Left: your original upload, never changed. Right: the committed edits drawn with the same data and page coordinates as the download. Highlighting shows pixel differences only; it does not prove what the file contains, and no comparison shows that a document is authentic or unchanged."
           className={styles.alert}
         />
 
@@ -256,6 +264,12 @@ export function DocumentComparisonModal({
             >
               Next
             </Button>
+            <Tooltip title="Undo last edit (Ctrl+Z)">
+              <Button size="small" icon={<UndoOutlined />} disabled={!canUndo} onClick={undo} aria-label="Undo" />
+            </Tooltip>
+            <Tooltip title="Redo (Ctrl+Y)">
+              <Button size="small" icon={<RedoOutlined />} disabled={!canRedo} onClick={redo} aria-label="Redo" />
+            </Tooltip>
           </Space>
 
           <Space wrap size={8}>
@@ -357,7 +371,7 @@ export function DocumentComparisonModal({
               <div className={styles.columns}>
                 <div className={styles.column}>
                   <Text strong className={styles.columnTitle}>
-                    Original
+                    Original PDF
                   </Text>
                   <div
                     ref={leftScrollRef}
@@ -382,7 +396,12 @@ export function DocumentComparisonModal({
                 </div>
                 <div className={styles.column}>
                   <Text strong className={styles.columnTitle}>
-                    Edited
+                    Edited preview
+                    {exportIsModified ? (
+                      <Tag color="warning" className={styles.modifiedTag}>
+                        Modified copy
+                      </Tag>
+                    ) : null}
                   </Text>
                   <div
                     ref={rightScrollRef}
@@ -400,7 +419,6 @@ export function DocumentComparisonModal({
                       fitMode={compareFit}
                       variant="edited"
                       overlayObjects={overlayObjects}
-                      getImageAsset={getImageAsset}
                       showOverlayPreview
                       onRenderScaleChange={setCompareScale}
                       onEditedStageReady={setEditedStage}
@@ -423,7 +441,6 @@ export function DocumentComparisonModal({
                     fitMode={compareFit}
                     variant="edited"
                     overlayObjects={overlayObjects}
-                    getImageAsset={getImageAsset}
                     showOverlayPreview
                     overlayOpacity={overlayOpacity / 100}
                     onRenderScaleChange={setCompareScale}
@@ -442,6 +459,7 @@ export function DocumentComparisonModal({
             activePage={activePage}
             pageCount={effectivePageCount}
             currentPageVisualDiff={currentPageVisualDiff}
+            onNavigateToPage={onPageChange}
           />
         </div>
 

@@ -1,6 +1,15 @@
 .root {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   padding: 6px 12px;
   border-bottom: 1px solid var(--sps-border);
   background: var(--sps-surface-muted);
   flex-shrink: 0;
+}
+
+.actions :global(.ant-tag) {
+  margin-inline-end: 0;
 }

@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
   useState,
@@ -24,6 +25,12 @@ interface EditorPreviewContextValue {
   setPreviewMode: (mode: WorkspacePreviewMode) => void
   pendingTextReplacement: PendingTextReplacementPreview | null
   setPendingTextReplacement: (value: PendingTextReplacementPreview | null) => void
+  /** Tracked change outlined in every view (see `buildTrackedChanges`). */
+  focusedChangeId: string | null
+  setFocusedChangeId: (id: string | null) => void
+  /** Bumps when the user resets the comparison view (scroll back to the top). */
+  viewResetToken: number
+  requestViewReset: () => void
 }
 
 const EditorPreviewContext = createContext<EditorPreviewContextValue | null>(null)
@@ -32,6 +39,9 @@ export function EditorPreviewProvider({ children }: { children: ReactNode }) {
   const [previewMode, setPreviewMode] = useState<WorkspacePreviewMode>('edited')
   const [pendingTextReplacement, setPendingTextReplacement] =
     useState<PendingTextReplacementPreview | null>(null)
+  const [focusedChangeId, setFocusedChangeId] = useState<string | null>(null)
+  const [viewResetToken, setViewResetToken] = useState(0)
+  const requestViewReset = useCallback(() => setViewResetToken((value) => value + 1), [])
 
   const value = useMemo(
     () => ({
@@ -39,8 +49,12 @@ export function EditorPreviewProvider({ children }: { children: ReactNode }) {
       setPreviewMode,
       pendingTextReplacement,
       setPendingTextReplacement,
+      focusedChangeId,
+      setFocusedChangeId,
+      viewResetToken,
+      requestViewReset,
     }),
-    [previewMode, pendingTextReplacement],
+    [previewMode, pendingTextReplacement, focusedChangeId, viewResetToken, requestViewReset],
   )
 
   return (

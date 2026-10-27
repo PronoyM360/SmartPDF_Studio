@@ -1,4 +1,5 @@
 import { Typography } from 'antd'
+import { ChangeSummaryPanel } from '@/features/changes/ChangeSummaryPanel'
 import type { ComparisonChangeSummary } from '@/features/comparison/buildComparisonChangeSummary'
 import styles from './ComparisonChangeSummaryPanel.module.css'
 
@@ -9,6 +10,7 @@ interface ComparisonChangeSummaryPanelProps {
   activePage: number
   pageCount: number
   currentPageVisualDiff: boolean | null
+  onNavigateToPage: (pageNumber: number) => void
 }
 
 function StatRow({
@@ -39,56 +41,31 @@ export function ComparisonChangeSummaryPanel({
   activePage,
   pageCount,
   currentPageVisualDiff,
+  onNavigateToPage,
 }: ComparisonChangeSummaryPanelProps) {
-  const pagesLabel =
-    summary.pagesWithOverlays.length > 0
-      ? summary.pagesWithOverlays.join(', ')
-      : 'None'
-
   return (
     <aside className={styles.panel} aria-label="Change summary">
-      <Text strong className={styles.title}>
-        Detected changes
-      </Text>
-      <Text type="secondary" className={styles.note}>
-        Counts reflect overlay objects in the editor, not native PDF text stream
-        edits.
-      </Text>
-
-      <StatRow label="Text overlays added" value={summary.textAdded} />
-      <StatRow label="Text overlays updated" value={summary.textUpdated} />
-      <StatRow label="Images added" value={summary.imagesAdded} />
-      <StatRow label="Images updated" value={summary.imagesUpdated} />
-      <StatRow label="Masks added" value={summary.masksAdded} />
-      <StatRow label="Masks updated" value={summary.masksUpdated} />
-      <StatRow
-        label="Move / resize / content updates"
-        value={summary.geometryOrContentUpdates}
-      />
-      <StatRow
-        label="Native PDF text changes"
-        value=""
-        unavailable="Not analyzed (overlay-only comparison)"
-      />
+      <ChangeSummaryPanel onNavigateToPage={onNavigateToPage} />
 
       <div className={styles.divider} />
 
-      <StatRow label="Pages with overlays" value={pagesLabel} />
-
+      <Text strong className={styles.title}>
+        Pixel comparison
+      </Text>
       {summary.visualDiffAnalyzed ? (
         <>
           <StatRow
-            label="Pages with visual diff (current view)"
+            label="This page"
             value={
               currentPageVisualDiff === null
                 ? '—'
                 : currentPageVisualDiff
                   ? 'Differences detected'
-                  : 'No meaningful diff'
+                  : 'No visible difference'
             }
           />
           <StatRow
-            label="Pages flagged (session)"
+            label="Pages flagged so far"
             value={
               summary.pagesWithVisualDiff.length > 0
                 ? summary.pagesWithVisualDiff.join(', ')
@@ -100,9 +77,13 @@ export function ComparisonChangeSummaryPanel({
         <StatRow
           label="Visual difference scan"
           value=""
-          unavailable="Enable highlight to analyze this page"
+          unavailable="Turn on Highlight differences"
         />
       )}
+      <Text type="secondary" className={styles.note}>
+        Compares rendered pixels of this preview only; it is not evidence of what the file
+        contains or of its authenticity.
+      </Text>
 
       {activePage > pageCount ? (
         <Text type="warning" className={styles.warning}>

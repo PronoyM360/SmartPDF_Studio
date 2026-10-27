@@ -279,16 +279,44 @@ export async function drawOverlaysOnPage(
   const fontCache = new Map<import('pdf-lib').StandardFonts, PDFFont>()
   const warnedFontFamilies = new Set<string>()
 
+  // Each text is drawn together with the covers under it; decide those pairs first.
+  const pairedMasksByText = new Map<string, MaskOverlayObject[]>()
   for (const object of pageObjects) {
     if (!isTextOverlay(object)) {
       continue
     }
-    const pairedMasks = masks.filter(
+    const paired = masks.filter(
       (mask) => !consumedMaskIds.has(mask.id) && pageRectsIntersect(mask.bounds, object.bounds),
     )
-    const flatMasks: MaskOverlayObject[] = []
-    for (const mask of pairedMasks) {
+    for (const mask of paired) {
       consumedMaskIds.add(mask.id)
+    }
+    pairedMasksByText.set(object.id, paired)
+  }
+
+  // Same stacking as the editor canvas (masks, then images, then text).
+  for (const object of pageObjects) {
+    if (isMaskOverlay(object)) {
+      if (consumedMaskIds.has(object.id)) {
+        continue
+      }
+      const patched =
+        hasBackgroundPatch(object) &&
+        (await drawMaskPatch(pdfDoc, page, object, getImageBytes, rotation, warnings))
+      if (!patched) {
+        drawMask(page, object)
+      }
+      continue
+    }
+    if (isImageOverlay(object)) {
+      await drawImageOverlay(pdfDoc, page, object, getImageBytes, warnings)
+      continue
+    }
+    if (!isTextOverlay(object)) {
+      continue
+    }
+    const flatMasks: MaskOverlayObject[] = []
+    for (const mask of pairedMasksByText.get(object.id) ?? []) {
       const patched =
         hasBackgroundPatch(mask) &&
         (await drawMaskPatch(pdfDoc, page, mask, getImageBytes, rotation, warnings))
@@ -320,23 +348,5 @@ export async function drawOverlaysOnPage(
     warnings.push(
       'Text corrections were embedded as images so edited prices are not selectable as PDF text in most viewers.',
     )
-  }
-
-  for (const object of pageObjects) {
-    if (isMaskOverlay(object)) {
-      if (consumedMaskIds.has(object.id)) {
-        continue
-      }
-      const patched =
-        hasBackgroundPatch(object) &&
-        (await drawMaskPatch(pdfDoc, page, object, getImageBytes, rotation, warnings))
-      if (!patched) {
-        drawMask(page, object)
-      }
-      continue
-    }
-    if (isImageOverlay(object)) {
-      await drawImageOverlay(pdfDoc, page, object, getImageBytes, warnings)
-    }
   }
 }

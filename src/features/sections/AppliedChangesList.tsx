@@ -23,13 +23,21 @@ export function AppliedChangesList() {
   const { previewMode, setPreviewMode } = useEditorPreview()
   const { goToPage } = useDocumentSections()
 
-  const masks = useMemo(
-    () =>
-      overlayObjects
-        .filter(isMaskOverlay)
-        .sort((a, b) => a.pageIndex - b.pageIndex || a.createdAt - b.createdAt),
-    [overlayObjects],
-  )
+  const masks = useMemo(() => {
+    // Covers that belong to a text, price or OCR edit are listed with that edit (Changes tab);
+    // removing one here would leave its replacement text floating over the original.
+    const linked = new Set(
+      overlayObjects.flatMap((object) =>
+        object.kind === 'text'
+          ? [object.amendment?.maskId, object.replacement?.maskId].filter((id): id is string => Boolean(id))
+          : [],
+      ),
+    )
+    return overlayObjects
+      .filter(isMaskOverlay)
+      .filter((mask) => !linked.has(mask.id))
+      .sort((a, b) => a.pageIndex - b.pageIndex || a.createdAt - b.createdAt)
+  }, [overlayObjects])
 
   if (masks.length === 0) {
     return null

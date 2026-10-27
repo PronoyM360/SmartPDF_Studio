@@ -35,8 +35,16 @@ export interface ModificationSummary {
   /** Text overlays that replace a printed amount (subset excluded from `textEdits`). */
   readonly amountEdits: number
   readonly amountEditPages: readonly number[]
+  /** Text overlays that replace OCR-recognised text in a scan (excluded from `textEdits`). */
+  readonly ocrEdits: number
+  readonly ocrEditPages: readonly number[]
   readonly images: number
   readonly redactedPages: readonly number[]
+}
+
+/** Edits that alter what a printed or scanned document states; the copy must say it is modified. */
+export function requiresModifiedCopyLabel(summary: ModificationSummary): boolean {
+  return summary.amountEdits > 0 || summary.ocrEdits > 0
 }
 
 export function summarizeModifications(overlays: readonly OverlayObject[]): ModificationSummary {
@@ -45,9 +53,11 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
   let redactions = 0
   let textEdits = 0
   let amountEdits = 0
+  let ocrEdits = 0
   let images = 0
   const redactedPages = new Set<number>()
   const amountEditPages = new Set<number>()
+  const ocrEditPages = new Set<number>()
   // Covers paired with an amount edit are part of that edit, not separate covers.
   const amountMaskIds = new Set(
     overlays.flatMap((object) => (object.kind === 'text' && object.amendment ? [object.amendment.maskId] : [])),
@@ -57,6 +67,9 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
       if (object.amendment) {
         amountEdits += 1
         amountEditPages.add(object.pageIndex)
+      } else if (object.ocrEdit) {
+        ocrEdits += 1
+        ocrEditPages.add(object.pageIndex)
       } else {
         textEdits += 1
       }
@@ -87,6 +100,8 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
     textEdits,
     amountEdits,
     amountEditPages: [...amountEditPages].sort((a, b) => a - b),
+    ocrEdits,
+    ocrEditPages: [...ocrEditPages].sort((a, b) => a - b),
     images,
     redactedPages: [...redactedPages].sort((a, b) => a - b),
   }
@@ -104,6 +119,9 @@ export function describeExportedModifications(summary: ModificationSummary): str
   }
   if (summary.amountEdits > 0) {
     parts.push(plural(summary.amountEdits, 'edited amount'))
+  }
+  if (summary.ocrEdits > 0) {
+    parts.push(plural(summary.ocrEdits, 'edit') + ' to scanned text')
   }
   if (summary.covers > 0) {
     parts.push(plural(summary.covers, 'visual cover'))

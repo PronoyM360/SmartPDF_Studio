@@ -352,7 +352,6 @@ function EditorWorkspaceWithTextInspect({
     overlayObjects,
     imageIngestError,
     clearImageIngestError,
-    getImageAsset,
   } = useEditorSession()
   const effectivePageCount =
     status === 'ready' && pageCount > 0 ? pageCount : document.pageCount
@@ -536,7 +535,6 @@ function EditorWorkspaceWithTextInspect({
           zoomPercent={zoomPercent}
           fitMode={fitMode}
           overlayObjects={exportedOverlayObjects}
-          getImageAsset={getImageAsset}
         />
       <EditorKeyboardHost />
       <input
@@ -596,7 +594,10 @@ function EditorWorkspaceWithTextInspect({
                 className={styles.inlineAlert}
               />
             ) : null}
-            <WorkspacePreviewModeSwitch />
+            <WorkspacePreviewModeSwitch
+              onResetView={() => onFitModeChange('page')}
+              onOpenComparison={() => setCompareOpen(true)}
+            />
             <PdfWorkspace
               zoomPercent={zoomPercent}
               fitMode={fitMode}

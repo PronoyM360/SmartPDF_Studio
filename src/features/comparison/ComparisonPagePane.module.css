@@ -1,12 +1,20 @@
+/* Full width so the fit scale is measured from the pane, not from the (shrink-wrapped) page. */
 .root {
+  width: 100%;
   min-height: 320px;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-start;
 }
 
 .loading {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   min-height: 200px;
+  /* Same box as .root, so a size measured while loading still fits the loaded page. */
+  align-self: stretch;
 }
 
 .stack {
@@ -14,6 +22,7 @@
   display: inline-block;
   line-height: 0;
   margin: 0 auto;
+  flex-shrink: 0;
 }
 
 .overlayLayer {

@@ -118,7 +118,9 @@ export function buildTextCorrectionOverlays(
     alignment: input.alignment ?? 'left',
     fontWeight: input.fontWeight ?? 'normal',
     ...(input.letterSpacing ? { letterSpacing: input.letterSpacing } : {}),
-    ...(input.amendment ? { amendment: { ...input.amendment, maskId: mask.id } } : {}),
+    ...(input.amendment
+      ? { amendment: { ...input.amendment, maskId: mask.id } }
+      : { replacement: { originalText: input.originalText, maskId: mask.id } }),
     ...(input.ocrEdit ? { ocrEdit: input.ocrEdit } : {}),
   }
   return [mask, text]

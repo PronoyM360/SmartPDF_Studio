@@ -1,6 +1,17 @@
 import { createHash } from 'node:crypto'
 import { deflateSync } from 'node:zlib'
-import { degrees, PDFDict, PDFDocument, PDFName, PDFNumber, PDFRawStream, rgb, StandardFonts } from 'pdf-lib'
+import {
+  decodePDFRawStream,
+  degrees,
+  PDFArray,
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFNumber,
+  PDFRawStream,
+  rgb,
+  StandardFonts,
+} from 'pdf-lib'
 import { describe, expect, it } from 'vitest'
 import { exportEditedPdf } from '@/lib/pdf/export/exportEditedPdf'
 import { ocrEditCheck, renderProbePages } from '@/lib/pdf/export/exportQualityChecks'
@@ -145,7 +156,8 @@ describe('OCR patch export', () => {
     expect(result.verification.ok).toBe(true)
     expect(createHash('sha256').update(source.originalBytes).digest('hex')).toBe(sourceHash)
     expect(result.warnings.join(' ')).not.toContain('flat fill was used')
-    expect(result.modifications).toMatchObject({ covers: 0, textEdits: 2 })
+    expect(result.modifications).toMatchObject({ covers: 0, textEdits: 0, ocrEdits: 2, ocrEditPages: [0, 1] })
+    expect(result.warnings.join(' ')).toContain('Edits to scanned text always add')
 
     const exported = await PDFDocument.load(result.bytes.slice())
     expect(exported.getPageCount()).toBe(2)
@@ -164,6 +176,49 @@ describe('OCR patch export', () => {
     })
     expect(result.verification.ok).toBe(true)
     expect(result.warnings.join(' ')).toContain('flat fill was used instead')
+  })
+
+  it('stacks standalone covers and images under text, as the editor does', async () => {
+    const source = await scannedTicketSource()
+    const now = Date.now()
+    const overlays: OverlayObject[] = [
+      {
+        id: 'text',
+        kind: 'text',
+        pageIndex: 0,
+        bounds: { x: 40, y: 40, width: 120, height: 20 },
+        content: 'ON TOP',
+        fontFamily: 'Helvetica',
+        fontSize: 12,
+        color: '#000000',
+        alignment: 'left',
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: 'image',
+        kind: 'image',
+        pageIndex: 0,
+        bounds: { x: 30, y: 30, width: 200, height: 60 },
+        assetId: 'img',
+        rotation: 0,
+        lockAspectRatio: true,
+        createdAt: now + 1,
+        updatedAt: now + 1,
+      },
+    ]
+    const png = encodePng(4, 4, () => [10, 200, 10, 255])
+    const result = await exportEditedPdf({ source, overlays, getImageBytes: () => png })
+    const exported = await PDFDocument.load(result.bytes.slice())
+    const contents = exported.getPage(0).node.Contents()
+    const streams = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : []
+    const operators = streams
+      .map((ref) => exported.context.lookup(ref))
+      .filter((stream): stream is PDFRawStream => stream instanceof PDFRawStream)
+      .map((stream) => new TextDecoder().decode(decodePDFRawStream(stream).decode()))
+      .join('\n')
+    expect(operators.lastIndexOf(' Do')).toBeGreaterThan(-1)
+    expect(operators.lastIndexOf('Tj')).toBeGreaterThan(operators.lastIndexOf(' Do'))
   })
 
   it('describes OCR edits and renders every edited page', () => {

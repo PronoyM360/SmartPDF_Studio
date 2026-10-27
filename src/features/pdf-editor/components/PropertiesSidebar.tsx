@@ -3,7 +3,9 @@ import { Button, Tabs, Tooltip, Typography } from 'antd'
 import { EDITOR_TOOLS } from '@/app/editorTools'
 import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import { OverlayPropertiesPanel } from '@/features/pdf-editor/components/OverlayPropertiesPanel'
+import { ChangeSummaryPanel } from '@/features/changes/ChangeSummaryPanel'
 import { OcrInspectionPanel } from '@/features/ocr/OcrInspectionPanel'
+import { useDocumentSections } from '@/features/sections/DocumentSectionsContext'
 import { PricesPanel } from '@/features/prices/PricesPanel'
 import { SectionsPanel } from '@/features/sections/SectionsPanel'
 import { PdfTextInspectionPanel } from '@/features/text-tools/PdfTextInspectionPanel'
@@ -11,7 +13,7 @@ import styles from './PropertiesSidebar.module.css'
 
 const { Text, Title } = Typography
 
-export type PropertiesTabKey = 'overlays' | 'pdf-text' | 'prices' | 'ocr' | 'sections'
+export type PropertiesTabKey = 'overlays' | 'changes' | 'pdf-text' | 'prices' | 'ocr' | 'sections'
 
 interface PropertiesSidebarProps {
   collapsed: boolean
@@ -31,6 +33,7 @@ export function PropertiesSidebar({
   onTabChange,
 }: PropertiesSidebarProps) {
   const { activeToolId } = useEditorSession()
+  const { goToPage } = useDocumentSections()
   const activeTool =
     EDITOR_TOOLS.find((tool) => tool.id === activeToolId) ?? EDITOR_TOOLS[0]!
 
@@ -80,6 +83,13 @@ export function PropertiesSidebar({
                       renderScale={renderScale}
                     />
                   </>
+                ),
+              },
+              {
+                key: 'changes',
+                label: 'Changes',
+                children: (
+                  <ChangeSummaryPanel onNavigateToPage={(page) => goToPage(page - 1)} />
                 ),
               },
               {

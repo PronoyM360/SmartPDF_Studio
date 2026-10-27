@@ -8,6 +8,7 @@ import { Alert, Button, List, Modal, Space, Spin, Switch, Tag, Tooltip, Typograp
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   describeExportedModifications,
+  requiresModifiedCopyLabel,
   summarizeModifications,
 } from '@/lib/redaction/maskModes'
 import {
@@ -89,7 +90,7 @@ export function ExportQualityCheckModal({
   const runIdRef = useRef(0)
   const modifications = summarizeModifications(overlays)
   const hasExportedChanges = describeExportedModifications(modifications) !== null
-  const amountLabelRequired = modifications.amountEdits > 0
+  const amountLabelRequired = requiresModifiedCopyLabel(modifications)
 
   const runChecks = useCallback(async () => {
     if (!source) {
@@ -185,7 +186,7 @@ export function ExportQualityCheckModal({
         <Tooltip
           title={
             amountLabelRequired
-              ? 'Required: this copy changes printed amounts, so every changed page gets a "Modified copy" note and the document keywords record the changes.'
+              ? 'Required: this copy changes printed amounts or scanned text, so every changed page gets a "Modified copy" note and the document keywords record the changes.'
               : "Adds a small 'Modified copy' note in the bottom margin of each changed page and records the changes in the document keywords. Recommended for official documents."
           }
         >
@@ -199,7 +200,7 @@ export function ExportQualityCheckModal({
             />
             <Text>
               Label modified pages in the exported copy
-              {amountLabelRequired ? ' (required for edited amounts)' : ''}
+              {amountLabelRequired ? ' (required for edited amounts and scans)' : ''}
             </Text>
           </Space>
         </Tooltip>
@@ -209,7 +210,13 @@ export function ExportQualityCheckModal({
         <Alert
           type="warning"
           showIcon
-          message={`${modifications.amountEdits} edited amount${modifications.amountEdits === 1 ? '' : 's'}`}
+          message={describeExportedModifications({
+            ...modifications,
+            covers: 0,
+            redactions: 0,
+            textEdits: 0,
+            images: 0,
+          })}
           description="Only use this for authorized corrections or internal copies. The download is an edited copy, not an original or verified document; keep the original file for comparison."
           className={styles.banner}
         />

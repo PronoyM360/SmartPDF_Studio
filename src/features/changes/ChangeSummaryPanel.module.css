@@ -1,0 +1,104 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.kindTag {
+  margin-inline-end: 0 !important;
+  font-size: 0.7rem;
+}
+
+.pages,
+.empty,
+.footnote {
+  font-size: 0.72rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.row,
+.rowFocused {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  background: var(--sps-surface);
+  border: 1px solid var(--sps-border);
+  border-radius: var(--sps-radius-md);
+  cursor: pointer;
+  font: inherit;
+}
+
+.row:hover {
+  border-color: #a78bfa;
+}
+
+.rowFocused {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 1px #7c3aed inset;
+  background: rgba(124, 58, 237, 0.05);
+}
+
+.rowHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.page {
+  font-size: 0.72rem;
+}
+
+.detail {
+  font-size: 0.76rem;
+}
+
+.before {
+  text-decoration: line-through;
+  color: var(--sps-text-muted);
+}
+
+.after {
+  font-weight: 600;
+}
+
+.note {
+  font-size: 0.7rem;
+}
+
+.clear {
+  align-self: flex-start;
+  padding: 0 !important;
+  height: auto !important;
+}
+
+.alert {
+  font-size: 0.75rem;
+}

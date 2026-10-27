@@ -27,8 +27,17 @@ export interface TextOverlayObject {
   readonly amendment?: AmountAmendment
   /** Set when this overlay replaces text recognised by OCR inside an image. */
   readonly ocrEdit?: OcrEditRecord
+  /** Set when this overlay replaces existing page text (PDF text or OCR) behind a cover. */
+  readonly replacement?: TextReplacementRecord
   readonly createdAt: number
   readonly updatedAt: number
+}
+
+export interface TextReplacementRecord {
+  /** The page text this overlay covers, as confirmed by the user. */
+  readonly originalText: string
+  /** The cover mask created together with this overlay. */
+  readonly maskId: string
 }
 
 export type TextOverlayPatch = Partial<

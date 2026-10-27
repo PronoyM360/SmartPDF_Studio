@@ -11,6 +11,7 @@ import {
   describeExportedModifications,
   exportableOverlayObjects,
   maskModeOf,
+  requiresModifiedCopyLabel,
   summarizeModifications,
   type ModificationSummary,
 } from '@/lib/redaction/maskModes'
@@ -183,12 +184,20 @@ export async function exportEditedPdf(
 
   const documentSummary = describeExportedModifications(modifications)
   let addedTextByPage = new Map<number, string>()
-  // Changed amounts alter official figures, so the copy is always labelled.
-  const markPages = options.markModifiedPages || modifications.amountEdits > 0
-  if (modifications.amountEdits > 0 && !options.markModifiedPages) {
-    warnings.push(
-      'Edited amounts always add a “Modified copy” notice to the changed pages and the document keywords.',
-    )
+  // Changed amounts and edited scans alter what the document states, so the copy is always labelled.
+  const labelRequired = requiresModifiedCopyLabel(modifications)
+  const markPages = options.markModifiedPages || labelRequired
+  if (labelRequired && !options.markModifiedPages) {
+    if (modifications.amountEdits > 0) {
+      warnings.push(
+        'Edited amounts always add a “Modified copy” notice to the changed pages and the document keywords.',
+      )
+    }
+    if (modifications.ocrEdits > 0) {
+      warnings.push(
+        'Edits to scanned text always add a “Modified copy” notice to the changed pages and the document keywords.',
+      )
+    }
   }
   if (markPages && documentSummary) {
     const perPage = new Map<number, string>()

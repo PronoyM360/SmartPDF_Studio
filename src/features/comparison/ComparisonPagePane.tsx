@@ -1,10 +1,10 @@
 import { Spin } from 'antd'
 import type Konva from 'konva'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ChangeHighlightLayer } from '@/features/changes/ChangeHighlightLayer'
 import { ComparisonDiffHeatmap } from '@/features/comparison/ComparisonDiffHeatmap'
 import { ComparisonOverlayHints } from '@/features/comparison/ComparisonOverlayHints'
 import { ComparisonOverlayPreview } from '@/features/comparison/ComparisonOverlayPreview'
-import type { ImageAssetRecord } from '@/features/pdf-editor/EditorSessionContext'
 import { PdfPageCanvas } from '@/features/pdf-viewer/PdfPageCanvas'
 import { usePdfViewer } from '@/features/pdf-viewer/PdfViewerContext'
 import { useContainerSize } from '@/hooks/useContainerSize'
@@ -24,7 +24,6 @@ interface ComparisonPagePaneProps {
   fitMode: FitMode
   variant: 'original' | 'edited'
   overlayObjects: readonly OverlayObject[]
-  getImageAsset?: (assetId: string) => ImageAssetRecord | undefined
   showBoundsHints?: boolean
   showOverlayPreview?: boolean
   overlayOpacity?: number
@@ -42,7 +41,6 @@ export function ComparisonPagePane({
   fitMode,
   variant,
   overlayObjects,
-  getImageAsset,
   showBoundsHints = false,
   showOverlayPreview = true,
   overlayOpacity = 1,
@@ -148,7 +146,7 @@ export function ComparisonPagePane({
           scale={renderScale}
           onCanvasReady={handleCanvasReady}
         />
-        {variant === 'edited' && showOverlayPreview && getImageAsset ? (
+        {variant === 'edited' && showOverlayPreview ? (
           <div
             className={styles.overlayLayer}
             style={{ opacity: overlayOpacity }}
@@ -158,11 +156,16 @@ export function ComparisonPagePane({
               pageIndex={pageIndex}
               renderScale={renderScale}
               overlayObjects={overlayObjects}
-              getImageAsset={getImageAsset}
               onStageReady={handleStageReady}
             />
           </div>
         ) : null}
+        <ChangeHighlightLayer
+          pageNumber={pageNumber}
+          pageIndex={pageIndex}
+          renderScale={renderScale}
+          variant={variant}
+        />
         {variant === 'edited' && showBoundsHints ? (
           <ComparisonOverlayHints
             pageIndex={pageIndex}

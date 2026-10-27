@@ -1,4 +1,6 @@
-import { Segmented, Tooltip } from 'antd'
+import { ExpandOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, Segmented, Space, Tag, Tooltip } from 'antd'
+import { useTrackedChanges } from '@/features/changes/useTrackedChanges'
 import { useEditorPreview, type WorkspacePreviewMode } from '@/features/pdf-editor/EditorPreviewContext'
 import styles from './WorkspacePreviewModeSwitch.module.css'
 
@@ -9,23 +11,30 @@ const OPTIONS: {
 }[] = [
   {
     value: 'original',
-    label: 'Original',
-    tooltip: 'Uploaded PDF only — hides your overlay edits on the canvas.',
+    label: 'Original PDF',
+    tooltip: 'Your uploaded file as it is — no edits are shown. The original is never changed.',
   },
   {
     value: 'edited',
-    label: 'Edited',
-    tooltip: 'Shows committed overlays — matches export and download.',
+    label: 'Edited preview',
+    tooltip: 'Committed edits on top of the original, editable. Hidden regions are preview-only.',
   },
   {
     value: 'side-by-side',
     label: 'Side by side',
-    tooltip: 'Original on the left, your committed edits on the right.',
+    tooltip: 'Original on the left; on the right, the edits exactly as they will be downloaded. Pages, zoom and scrolling stay in sync.',
   },
 ]
 
-export function WorkspacePreviewModeSwitch() {
-  const { previewMode, setPreviewMode } = useEditorPreview()
+interface WorkspacePreviewModeSwitchProps {
+  /** Restores the default zoom and fit for the comparison. */
+  onResetView: () => void
+  onOpenComparison: () => void
+}
+
+export function WorkspacePreviewModeSwitch({ onResetView, onOpenComparison }: WorkspacePreviewModeSwitchProps) {
+  const { previewMode, setPreviewMode, requestViewReset, setFocusedChangeId } = useEditorPreview()
+  const { exportIsModified } = useTrackedChanges()
 
   return (
     <div className={styles.root} role="group" aria-label="Document preview mode">
@@ -42,6 +51,34 @@ export function WorkspacePreviewModeSwitch() {
           ),
         }))}
       />
+      <Space size={4} className={styles.actions}>
+        {exportIsModified && previewMode !== 'original' ? (
+          <Tooltip title="The download will differ from your upload. Label it as a modified copy when sharing official documents.">
+            <Tag color="warning">Modified copy</Tag>
+          </Tooltip>
+        ) : null}
+        {previewMode === 'side-by-side' ? (
+          <Tooltip title="Reset zoom, fit and scrolling, and clear the highlighted change">
+            <Button
+              size="small"
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={() => {
+                onResetView()
+                requestViewReset()
+                setFocusedChangeId(null)
+              }}
+            >
+              Reset view
+            </Button>
+          </Tooltip>
+        ) : null}
+        <Tooltip title="Full-screen comparison with overlay mode and difference highlighting">
+          <Button size="small" type="text" icon={<ExpandOutlined />} onClick={onOpenComparison}>
+            Compare
+          </Button>
+        </Tooltip>
+      </Space>
     </div>
   )
 }

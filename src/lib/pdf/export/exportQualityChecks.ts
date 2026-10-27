@@ -15,6 +15,7 @@ import { openBrowserInspector } from '@/lib/redaction/browserPdfTools'
 import {
   describeExportedModifications,
   exportableOverlayObjects,
+  requiresModifiedCopyLabel,
 } from '@/lib/redaction/maskModes'
 import type { OpenPdfInspector } from '@/lib/redaction/types'
 import { MIN_FILL_COVERAGE } from '@/lib/redaction/verifyRedactedExport'
@@ -573,7 +574,7 @@ function modificationChecks(
   const described = describeExportedModifications(modifications)
   if (described) {
     checks.push(
-      markModifiedPages || modifications.amountEdits > 0
+      markModifiedPages || requiresModifiedCopyLabel(modifications)
         ? item(
             'modified_label',
             'Exported copy is marked as modified',
