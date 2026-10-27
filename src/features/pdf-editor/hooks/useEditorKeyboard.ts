@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
+import { useRegionSelection } from '@/features/region-selection/RegionSelectionContext'
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
@@ -28,6 +29,7 @@ export function useEditorKeyboard(): void {
     activeToolId,
     getSelectedObject,
   } = useEditorSession()
+  const region = useRegionSelection()
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -36,7 +38,14 @@ export function useEditorKeyboard(): void {
       }
 
       const mod = event.ctrlKey || event.metaKey
+      const regionTool = activeToolId === 'region'
       if (mod && event.key.toLowerCase() === 'z' && !event.shiftKey) {
+        // While selecting, undo steps back through selection moves before touching edits.
+        if (regionTool && region.canUndoSelection && !region.activeAction) {
+          region.undoSelection()
+          event.preventDefault()
+          return
+        }
         if (canUndo) {
           undo()
           event.preventDefault()
@@ -81,6 +90,12 @@ export function useEditorKeyboard(): void {
           event.preventDefault()
           return
         }
+        if (key === 'r') {
+          setActiveToolId('region')
+          selectObject(null)
+          event.preventDefault()
+          return
+        }
       }
 
       if (
@@ -98,6 +113,11 @@ export function useEditorKeyboard(): void {
       }
 
       if (event.key === 'Escape') {
+        if (regionTool && region.selection && !region.activeAction) {
+          region.cancelSelection()
+          event.preventDefault()
+          return
+        }
         if (editingObjectId) {
           setEditingObjectId(null)
           event.preventDefault()
@@ -137,5 +157,6 @@ export function useEditorKeyboard(): void {
     setActiveToolId,
     activeToolId,
     getSelectedObject,
+    region,
   ])
 }

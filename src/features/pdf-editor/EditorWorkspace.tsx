@@ -11,6 +11,8 @@ import { resolveInitialEditorSession } from '@/features/persistence/resolveIniti
 import { restoreFromPersistedSession } from '@/features/persistence/restoreFromPersistedSession'
 import { PriceEditModal } from '@/features/prices/PriceEditModal'
 import { PriceEditorProvider } from '@/features/prices/PriceEditorContext'
+import { RegionActionHost } from '@/features/region-selection/RegionActionHost'
+import { RegionSelectionProvider } from '@/features/region-selection/RegionSelectionContext'
 import { DocumentSectionsProvider } from '@/features/sections/DocumentSectionsContext'
 import { formatLastSavedAt } from '@/lib/persistence/formatLastSaved'
 import { PdfTextInspectProvider } from '@/features/text-tools/PdfTextInspectContext'
@@ -252,6 +254,7 @@ export function EditorWorkspace({
           restoredSession={restoredSession}
         >
           <EditorPreviewProvider>
+          <RegionSelectionProvider currentPageIndex={currentPage - 1}>
           <EditorWorkspaceWithTextInspect
             document={document}
             currentPage={currentPage}
@@ -281,6 +284,7 @@ export function EditorWorkspace({
             pdfSource={pdfSource}
             persistenceBaseline={persistenceBaseline}
           />
+          </RegionSelectionProvider>
           </EditorPreviewProvider>
         </EditorSessionProvider>
       </PdfViewerProvider>
@@ -494,10 +498,20 @@ function EditorWorkspaceWithTextInspect({
           activePage={currentPage}
           pageCount={effectivePageCount}
           onPageChange={setActivePage}
-          onOpenPagesPanel={() => setPagesDrawerOpen(true)}
+          onOpenPagesPanel={() => {
+            if (layoutMode === 'mobile') {
+              setPagesDrawerOpen(true)
+            } else {
+              setPagesCollapsed((prev) => !prev)
+            }
+          }}
           onOpenPropertiesPanel={() => {
-            setPropertiesDrawerOpen(true)
-            setPropertiesCollapsed(false)
+            if (layoutMode === 'mobile') {
+              setPropertiesDrawerOpen(true)
+              setPropertiesCollapsed(false)
+            } else {
+              setPropertiesCollapsed((prev) => !prev)
+            }
           }}
           onReplacePdf={onReplacePdfClick}
           pdfSource={pdfSource}
@@ -633,7 +647,8 @@ function EditorWorkspaceWithTextInspect({
             placement="left"
             open={pagesDrawerOpen}
             onClose={() => setPagesDrawerOpen(false)}
-            width={280}
+            size={300}
+            rootClassName={styles.pagesDrawer}
             destroyOnHidden
           >
             <PagesSidebar
@@ -649,10 +664,11 @@ function EditorWorkspaceWithTextInspect({
           </Drawer>
           <Drawer
             title="Properties"
-            placement="right"
+            placement="bottom"
             open={propertiesDrawerOpen}
             onClose={() => setPropertiesDrawerOpen(false)}
-            width={300}
+            size="72dvh"
+            rootClassName={styles.propertiesSheet}
             destroyOnHidden
           >
             <PropertiesSidebar
@@ -667,6 +683,7 @@ function EditorWorkspaceWithTextInspect({
         </>
       ) : null}
       <PriceEditModal />
+      <RegionActionHost />
       </>
       </PriceEditorProvider>
       </DocumentSectionsProvider>

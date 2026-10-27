@@ -1,0 +1,16 @@
+/* Both layers fill the same box, so the panes compute the same fit scale and line up. */
+.stack {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.layer + .layer {
+  pointer-events: none;
+}

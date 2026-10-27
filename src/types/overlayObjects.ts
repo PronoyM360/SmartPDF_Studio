@@ -1,3 +1,4 @@
+import type { AnnotationOverlayObject } from './annotationOverlay'
 import type { ImageOverlayObject } from './imageOverlay'
 import type { MaskOverlayObject } from './maskOverlay'
 import type { TextOverlayObject } from './textOverlay'
@@ -6,6 +7,7 @@ export type OverlayObject =
   | TextOverlayObject
   | ImageOverlayObject
   | MaskOverlayObject
+  | AnnotationOverlayObject
 
 export type OverlayKind = OverlayObject['kind']
 
@@ -21,10 +23,15 @@ export function isMaskOverlay(object: OverlayObject): object is MaskOverlayObjec
   return object.kind === 'mask'
 }
 
+export function isAnnotationOverlay(object: OverlayObject): object is AnnotationOverlayObject {
+  return object.kind === 'annotation'
+}
+
 const KIND_LAYER_ORDER: Record<OverlayKind, number> = {
   mask: 0,
   image: 1,
   text: 2,
+  annotation: 3,
 }
 
 export function compareOverlayLayerOrder(a: OverlayObject, b: OverlayObject): number {

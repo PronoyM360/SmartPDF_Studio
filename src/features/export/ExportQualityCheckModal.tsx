@@ -4,7 +4,19 @@ import {
   ExclamationCircleFilled,
   MinusCircleOutlined,
 } from '@ant-design/icons'
-import { Alert, Button, List, Modal, Space, Spin, Switch, Tag, Tooltip, Typography } from 'antd'
+import {
+  Alert,
+  Button,
+  Collapse,
+  List,
+  Modal,
+  Space,
+  Steps,
+  Switch,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   describeExportedModifications,
@@ -17,6 +29,12 @@ import {
   type ExportQualityCheckItem,
   type ExportQualityReport,
 } from '@/lib/pdf/export/exportQualityChecks'
+import { selectExportOperations } from '@/lib/pdf/export/exportOperations'
+import {
+  EXPORT_STAGES,
+  exportStageIndex,
+  type ExportProgress,
+} from '@/lib/pdf/export/exportProgress'
 import type { PdfSource } from '@/types'
 import type { OverlayObject } from '@/types/overlayObjects'
 import styles from './ExportQualityCheckModal.module.css'
@@ -28,9 +46,13 @@ interface ExportQualityCheckModalProps {
   onClose: () => void
   source: PdfSource | null
   overlays: readonly OverlayObject[]
+  getCommittedOverlays: () => readonly OverlayObject[]
+  /** Records live edits in the undo history so they become part of the export. */
+  onCommitPendingEdits: () => void
   getImageBytes: (assetId: string) => Uint8Array | undefined
   expectedPageCount: number
   onDownload: (bytes: Uint8Array, report: ExportQualityReport) => void
+  onCompare: (bytes: Uint8Array, report: ExportQualityReport) => void
 }
 
 function statusIcon(status: ExportQualityCheckItem['status']) {
@@ -79,16 +101,22 @@ export function ExportQualityCheckModal({
   onClose,
   source,
   overlays,
+  getCommittedOverlays,
+  onCommitPendingEdits,
   getImageBytes,
   expectedPageCount,
   onDownload,
+  onCompare,
 }: ExportQualityCheckModalProps) {
   const [running, setRunning] = useState(false)
-  const [progress, setProgress] = useState('')
+  const [progress, setProgress] = useState<ExportProgress | null>(null)
+  const [runError, setRunError] = useState<string | null>(null)
   const [report, setReport] = useState<ExportQualityReport | null>(null)
   const [markModifiedPages, setMarkModifiedPages] = useState(true)
   const runIdRef = useRef(0)
-  const modifications = summarizeModifications(overlays)
+  const modifications = summarizeModifications(
+    selectExportOperations({ present: overlays, committed: getCommittedOverlays() }).operations,
+  )
   const hasExportedChanges = describeExportedModifications(modifications) !== null
   const amountLabelRequired = requiresModifiedCopyLabel(modifications)
 
@@ -106,6 +134,8 @@ export function ExportQualityCheckModal({
         canDownload: false,
         exportResult: null,
         blockingMessage: 'No PDF loaded.',
+        limitations: [],
+        excluded: [],
       })
       return
     }
@@ -113,28 +143,41 @@ export function ExportQualityCheckModal({
     const runId = runIdRef.current + 1
     runIdRef.current = runId
     setRunning(true)
-    setProgress('Starting checks…')
+    setRunError(null)
+    setProgress({ stage: 'preparing', message: 'Starting checks…' })
     setReport(null)
 
     try {
       const result = await runExportQualityChecks({
         source,
         overlays,
+        committedOverlays: getCommittedOverlays(),
         getImageBytes,
         expectedPageCount,
-        onProgress: setProgress,
+        onProgress: (next) => {
+          if (runIdRef.current === runId) {
+            setProgress(next)
+          }
+        },
         markModifiedPages,
       })
       if (runIdRef.current === runId) {
         setReport(result)
       }
+    } catch (cause) {
+      if (runIdRef.current === runId) {
+        setRunError(
+          cause instanceof Error
+            ? `Export failed unexpectedly: ${cause.message}`
+            : 'Export failed unexpectedly.',
+        )
+      }
     } finally {
       if (runIdRef.current === runId) {
         setRunning(false)
-        setProgress('')
       }
     }
-  }, [source, overlays, getImageBytes, expectedPageCount, markModifiedPages])
+  }, [source, overlays, getCommittedOverlays, getImageBytes, expectedPageCount, markModifiedPages])
 
   useEffect(() => {
     if (open) {
@@ -143,24 +186,39 @@ export function ExportQualityCheckModal({
       runIdRef.current += 1
       setReport(null)
       setRunning(false)
-      setProgress('')
+      setProgress(null)
+      setRunError(null)
     }
   }, [open, runChecks])
 
   const summary = report ? exportQualitySummary(report) : null
+  const failedStage = Boolean(runError) || Boolean(report && !report.exportResult)
+  const stageIndex = progress ? exportStageIndex(progress.stage) : 0
+  const uncommitted = report?.excluded.filter((entry) => entry.reason === 'uncommitted').length ?? 0
+  const exportedBytes = report?.exportResult?.bytes ?? null
 
   return (
     <Modal
       title="Export quality check"
       open={open}
       onCancel={onClose}
-      width={520}
+      width={600}
       destroyOnHidden
       footer={
         <Space wrap>
           <Button onClick={onClose}>Back to editing</Button>
           <Button onClick={() => void runChecks()} disabled={running || !source}>
             Run again
+          </Button>
+          <Button
+            disabled={!exportedBytes || running}
+            onClick={() => {
+              if (report && exportedBytes) {
+                onCompare(exportedBytes, report)
+              }
+            }}
+          >
+            Compare with original
           </Button>
           <Button
             type="primary"
@@ -172,22 +230,32 @@ export function ExportQualityCheckModal({
               }
             }}
           >
-            Download PDF
+            Download edited copy
           </Button>
         </Space>
       }
     >
       <Paragraph type="secondary" className={styles.intro}>
-        Checks run in your browser before download. They do not guarantee identical
-        appearance in every PDF viewer.
+        The download is an edited copy of your original, built from committed edits and
+        re-saved with pdf-lib. It is reopened with PDF.js and checked before download. The
+        checks are automated heuristics; they cannot guarantee identical appearance in every
+        PDF viewer, and the original file is never modified.
       </Paragraph>
+
+      <Steps
+        size="small"
+        className={styles.steps}
+        current={report && !failedStage ? EXPORT_STAGES.length - 1 : stageIndex}
+        status={failedStage ? 'error' : running ? 'process' : report ? 'finish' : 'wait'}
+        items={EXPORT_STAGES.map((entry) => ({ title: entry.title }))}
+      />
 
       {hasExportedChanges ? (
         <Tooltip
           title={
             amountLabelRequired
               ? 'Required: this copy changes printed amounts or scanned text, so every changed page gets a "Modified copy" note and the document keywords record the changes.'
-              : "Adds a small 'Modified copy' note in the bottom margin of each changed page and records the changes in the document keywords. Recommended for official documents."
+              : "Adds a small 'Modified copy' note in the bottom margin of each changed page. The file name and document info always record that this is an edited copy. Recommended for official documents."
           }
         >
           <Space size={6} className={styles.option}>
@@ -233,10 +301,34 @@ export function ExportQualityCheckModal({
       ) : null}
 
       {running ? (
-        <div className={styles.progress}>
-          <Spin size="small" />
-          <Text type="secondary">{progress || 'Running checks…'}</Text>
+        <div className={styles.progress} role="status" aria-live="polite">
+          <Text type="secondary">{progress?.message ?? 'Running checks…'}</Text>
         </div>
+      ) : null}
+
+      {runError ? (
+        <Alert
+          type="error"
+          showIcon
+          message="Export failed"
+          description={`${runError} The original file was not changed. Try again, or remove the most recent edit and retry.`}
+          className={styles.banner}
+        />
+      ) : null}
+
+      {uncommitted > 0 && !running ? (
+        <Alert
+          type="warning"
+          showIcon
+          message={`${uncommitted} edit(s) are not committed yet and were left out`}
+          description="These are live changes still being made in a properties panel. Commit them to include them in the export."
+          action={
+            <Button size="small" onClick={onCommitPendingEdits}>
+              Commit and re-run
+            </Button>
+          }
+          className={styles.banner}
+        />
       ) : null}
 
       {report?.blockingMessage && !report.canDownload ? (
@@ -249,7 +341,7 @@ export function ExportQualityCheckModal({
         />
       ) : null}
 
-      {summary && report?.canDownload ? (
+      {summary && report?.exportResult ? (
         <Alert
           type={summary.failed > 0 ? 'error' : summary.warning > 0 ? 'warning' : 'success'}
           showIcon
@@ -258,12 +350,12 @@ export function ExportQualityCheckModal({
               ? 'Fix failed checks before downloading'
               : summary.warning > 0
                 ? 'Download available with warnings'
-                : 'Checks passed — you may download'
+                : 'Automated checks passed'
           }
           description={
-            summary.warning > 0 || summary.failed > 0
-              ? 'Review warnings below. Compare the export visually after download if needed.'
-              : undefined
+            summary.failed > 0
+              ? 'Use "Compare with original" to see what went wrong.'
+              : 'Review the notes below and compare the export with the original before sharing it.'
           }
           className={styles.banner}
         />
@@ -287,18 +379,56 @@ export function ExportQualityCheckModal({
                     <Space size={6} wrap>
                       <Text>{check.title}</Text>
                       <Tag color={statusTagColor(check.status)}>{statusLabel(check.status)}</Tag>
-                      {check.approximate ? <Tag>Approximate</Tag> : null}
+                      {check.approximate ? <Tag>Heuristic</Tag> : null}
                     </Space>
                   }
                   description={
-                    <Text type="secondary" className={styles.detail}>
-                      {check.detail}
-                    </Text>
+                    <>
+                      <Text type="secondary" className={styles.detail}>
+                        {check.detail}
+                      </Text>
+                      {check.subItems ? (
+                        <ul className={styles.subList}>
+                          {check.subItems.map((sub, index) => (
+                            <li key={`${check.id}-${index}`} className={styles.subItem}>
+                              {statusIcon(sub.status)}
+                              <Text type="secondary" className={styles.detail}>
+                                {sub.text}
+                              </Text>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </>
                   }
                 />
               </List.Item>
             )}
           />
+          {report.limitations.length > 0 ? (
+            <Collapse
+              size="small"
+              ghost
+              className={styles.limits}
+              items={[
+                {
+                  key: 'limits',
+                  label: 'What this export cannot guarantee',
+                  children: (
+                    <ul className={styles.limitList}>
+                      {report.limitations.map((limit) => (
+                        <li key={limit}>
+                          <Text type="secondary" className={styles.detail}>
+                            {limit}
+                          </Text>
+                        </li>
+                      ))}
+                    </ul>
+                  ),
+                },
+              ]}
+            />
+          ) : null}
         </>
       ) : null}
     </Modal>

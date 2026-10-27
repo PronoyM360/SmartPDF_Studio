@@ -32,6 +32,13 @@ export const EDITOR_TOOLS: readonly EditorToolDefinition[] = [
     featureArea: 'pdf-editor',
   },
   {
+    id: 'region',
+    label: 'Select region',
+    description:
+      'Drag a rectangle on the page, then move or resize it to analyse, annotate, cover or redact that area.',
+    featureArea: 'pdf-editor',
+  },
+  {
     id: 'export',
     label: 'Export',
     description: 'Download the modified PDF.',

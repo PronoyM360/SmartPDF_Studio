@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { ErrorState } from '@/components/common/ErrorState'
 import { PageOverlayLayer } from '@/features/pdf-editor/PageOverlayLayer'
 import { ChangeHighlightLayer } from '@/features/changes/ChangeHighlightLayer'
+import { RegionSelectionLayer } from '@/features/region-selection/RegionSelectionLayer'
 import { useTrackedChanges } from '@/features/changes/useTrackedChanges'
 import { OcrHighlightLayer } from '@/features/ocr/OcrHighlightLayer'
 import { OcrRegionSelectLayer } from '@/features/ocr/OcrRegionSelectLayer'
@@ -54,6 +55,8 @@ interface PageCanvasStackProps {
   showInspectLayers: boolean
   showPendingReplacement: boolean
   exportMatchingOnly?: boolean
+  /** False for the original pane of side-by-side, so only one pane takes the selection. */
+  allowRegionSelection?: boolean
 }
 
 function PageCanvasStack({
@@ -64,7 +67,9 @@ function PageCanvasStack({
   showInspectLayers,
   showPendingReplacement,
   exportMatchingOnly = false,
+  allowRegionSelection = true,
 }: PageCanvasStackProps) {
+  const { activeToolId } = useEditorSession()
   return (
     <div className={styles.pageStack}>
       <PdfPageCanvas pageNumber={pageNumber} scale={renderScale} />
@@ -125,6 +130,9 @@ function PageCanvasStack({
         renderScale={renderScale}
         variant={showCommittedOverlays ? 'edited' : 'original'}
       />
+      {activeToolId === 'region' && allowRegionSelection ? (
+        <RegionSelectionLayer pageNumber={pageNumber} pageIndex={pageIndex} renderScale={renderScale} />
+      ) : null}
     </div>
   )
 }
@@ -314,6 +322,7 @@ export function PdfWorkspace({
             showInspectLayers={showInspectLayers}
             showPendingReplacement={showPendingReplacement}
             exportMatchingOnly
+            allowRegionSelection={variant === 'edited'}
           />
         </div>
       </div>

@@ -68,6 +68,11 @@ export function usePdfFromBytes(bytes: Uint8Array | null): {
 
     return () => {
       cancelled = true
+      const loaded = pdfRef.current
+      pdfRef.current = null
+      if (loaded) {
+        void releasePdfDocument(loaded)
+      }
     }
   }, [bytes])
 

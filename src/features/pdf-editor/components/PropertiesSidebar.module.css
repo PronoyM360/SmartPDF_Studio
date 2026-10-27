@@ -5,15 +5,16 @@
   min-height: 0;
   background: var(--sps-surface);
   border-left: 1px solid var(--sps-border);
+  transition: width var(--sps-duration-base) var(--sps-ease-standard);
 }
 
 .root {
-  width: 260px;
+  width: var(--sps-properties-width);
   flex-shrink: 0;
 }
 
 .rootCollapsed {
-  width: 44px;
+  width: var(--sps-collapsed-width);
   flex-shrink: 0;
 }
 
@@ -21,34 +22,92 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 4px;
-  padding: 8px;
-  border-bottom: 1px solid var(--sps-border);
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 14px 6px 8px;
+  border-bottom: 1px solid var(--sps-border-subtle);
+}
+
+.rootCollapsed .header {
+  justify-content: center;
+  padding-inline: 4px;
+}
+
+.header :global(.ant-btn) {
+  color: var(--sps-text-muted);
 }
 
 .title {
-  font-size: 0.82rem;
+  font-size: var(--sps-text-2xs);
+  font-weight: var(--sps-weight-semibold);
+  letter-spacing: var(--sps-tracking-caps);
+  text-transform: uppercase;
+  color: var(--sps-text-muted);
 }
 
 .body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px;
+  padding: 0 16px 20px;
+  overscroll-behavior: contain;
+  font-size: var(--sps-text-sm);
+}
+
+/* Keep the tab strip visible while the panel content scrolls. */
+.body :global(.ant-tabs-nav) {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-inline: -16px;
+  padding-inline: 16px;
+  padding-top: 4px;
+  background: var(--sps-surface);
+}
+
+.body :global(.ant-tabs-nav::before) {
+  border-bottom-color: var(--sps-border-subtle) !important;
 }
 
 .toolTitle {
   margin: 0 0 4px !important;
-  font-size: 0.9rem !important;
+  font-size: var(--sps-text-md) !important;
+  font-weight: var(--sps-weight-semibold) !important;
+  letter-spacing: var(--sps-tracking-tight);
 }
 
 .toolDescription {
   display: block;
-  font-size: 0.78rem;
-  margin-bottom: 12px;
+  font-size: var(--sps-text-xs);
+  line-height: var(--sps-leading-normal);
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--sps-border-subtle);
 }
 
 .form {
   margin-top: 4px;
 }
 
+@media (min-width: 768px) and (max-width: 1279px) {
+  .root {
+    width: min(var(--sps-properties-width), 34vw);
+    min-width: 272px;
+  }
+}
+
+/* Inside the mobile drawer / bottom sheet the drawer chrome provides title and close. */
+:global(.ant-drawer-body) > .root {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border-left: 0;
+}
+
+:global(.ant-drawer-body) > .root > .header {
+  display: none;
+}
+
+:global(.ant-drawer-body) > .root > .body {
+  padding-bottom: calc(20px + var(--sps-safe-bottom));
+}

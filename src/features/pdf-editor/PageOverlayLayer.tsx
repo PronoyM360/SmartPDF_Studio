@@ -23,10 +23,13 @@ import type { PageSizePt } from '@/lib/pdf/clampPageRect'
 import { exportableOverlayObjects } from '@/lib/redaction/maskModes'
 import {
   compareOverlayLayerOrder,
+  isAnnotationOverlay,
   isImageOverlay,
   isMaskOverlay,
   isTextOverlay,
 } from '@/types/overlayObjects'
+import { AnnotationObjectNode } from '@/features/annotations/AnnotationObjectNode'
+import { normalizePageRotation } from '@/lib/pdf/export/rotationFrame'
 import styles from './PageOverlayLayer.module.css'
 
 interface PageOverlayLayerProps {
@@ -72,6 +75,7 @@ export function PageOverlayLayer({
     updateTextObject,
     updateImageObject,
     updateMaskObject,
+    updateAnnotationObject,
     pendingImageAssetId,
     maskEyedropperActive,
     setMaskEyedropperActive,
@@ -104,10 +108,14 @@ export function PageOverlayLayer({
 
   const stageWidth = viewport.width
   const stageHeight = viewport.height
-  const pageSize: PageSizePt = {
-    width: pageTransform.viewport.width / pageTransform.scale,
-    height: pageTransform.viewport.height / pageTransform.scale,
-  }
+  // Overlay bounds are in user space; on 90°/270° pages the displayed size is swapped.
+  const displayWidth = pageTransform.viewport.width / pageTransform.scale
+  const displayHeight = pageTransform.viewport.height / pageTransform.scale
+  const quarter = normalizePageRotation(pageTransform.rotation)
+  const pageSize: PageSizePt =
+    quarter === 90 || quarter === 270
+      ? { width: displayHeight, height: displayWidth }
+      : { width: displayWidth, height: displayHeight }
   const manipulationEnabled = overlayManipulationEnabled(activeToolId)
   const selectionEnabled = overlaySelectionEnabled(activeToolId, pendingImageAssetId)
   const objectsListen = overlayObjectsListen(activeToolId, pendingImageAssetId)
@@ -269,6 +277,25 @@ export function PageOverlayLayer({
                     }
                   }}
                   onBoundsChange={(bounds) => updateMaskObject(object.id, { bounds })}
+                />
+              )
+            }
+            if (isAnnotationOverlay(object)) {
+              return (
+                <AnnotationObjectNode
+                  key={object.id}
+                  object={object}
+                  transform={pageTransform}
+                  selected={object.id === selectedObjectId && selectionEnabled}
+                  manipulationEnabled={manipulationEnabled}
+                  listeningEnabled={objectsListen}
+                  pageSize={pageSize}
+                  onSelect={() => {
+                    if (selectionEnabled) {
+                      selectObject(object.id)
+                    }
+                  }}
+                  onBoundsChange={(bounds) => updateAnnotationObject(object.id, { bounds })}
                 />
               )
             }

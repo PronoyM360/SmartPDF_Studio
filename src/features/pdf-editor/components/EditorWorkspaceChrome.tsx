@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { PdfSource } from '@/types'
 import type { DocumentRecordSource } from '@/types/documentRecord'
+import type { OverlayObject } from '@/types/overlayObjects'
+import type { ExportQualityReport } from '@/lib/pdf/export/exportQualityChecks'
 import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import { ExportCompareModal } from '@/features/export/ExportCompareModal'
 import { ExportQualityCheckModal } from '@/features/export/ExportQualityCheckModal'
@@ -37,6 +39,20 @@ interface EditorWorkspaceChromeProps {
   isSavingProject?: boolean
 }
 
+interface ExportComparison {
+  bytes: Uint8Array
+  verified: boolean
+  operations: readonly OverlayObject[]
+}
+
+function comparisonFromReport(bytes: Uint8Array, report: ExportQualityReport): ExportComparison {
+  return {
+    bytes,
+    verified: report.canDownload && !report.checks.some((check) => check.status === 'warning'),
+    operations: report.exportResult?.operations ?? [],
+  }
+}
+
 export function EditorWorkspaceChrome({
   layoutMode,
   documentName,
@@ -67,13 +83,15 @@ export function EditorWorkspaceChrome({
   const {
     overlayObjects,
     getImageAssetBytes,
+    getCommittedOverlayObjects,
+    commitOverlayHistoryStep,
     canUndo,
     canRedo,
     undo,
     redo,
   } = useEditorSession()
 
-  const [exportCompareOpen, setExportCompareOpen] = useState(false)
+  const [comparison, setComparison] = useState<ExportComparison | null>(null)
 
   const {
     openExportQualityCheck,
@@ -82,7 +100,7 @@ export function EditorWorkspaceChrome({
     completeDownload,
     isExporting,
     lastExportedBytes,
-    lastExportVerified,
+    lastQualityReport,
     hasExportCompare,
     overlayObjects: exportOverlays,
     getImageBytes,
@@ -129,7 +147,11 @@ export function EditorWorkspaceChrome({
         exportProgressMessage={null}
         onCompare={onCompare}
         compareDisabled={!pdfSource}
-        onCompareExport={() => setExportCompareOpen(true)}
+        onCompareExport={() => {
+          if (lastExportedBytes && lastQualityReport) {
+            setComparison(comparisonFromReport(lastExportedBytes, lastQualityReport))
+          }
+        }}
         compareExportDisabled={!hasExportCompare}
         saveStatusLabel={saveStatusLabel}
         saveStatusTone={saveStatusTone}
@@ -140,15 +162,19 @@ export function EditorWorkspaceChrome({
         onClose={closeExportQualityCheck}
         source={exportSource}
         overlays={exportOverlays}
+        getCommittedOverlays={getCommittedOverlayObjects}
+        onCommitPendingEdits={commitOverlayHistoryStep}
         getImageBytes={getImageBytes}
         expectedPageCount={pageCount}
         onDownload={completeDownload}
+        onCompare={(bytes, report) => setComparison(comparisonFromReport(bytes, report))}
       />
       <ExportCompareModal
-        open={exportCompareOpen}
-        onClose={() => setExportCompareOpen(false)}
-        exportedBytes={lastExportedBytes}
-        verificationOk={lastExportVerified}
+        open={comparison !== null}
+        onClose={() => setComparison(null)}
+        exportedBytes={comparison?.bytes ?? null}
+        verificationOk={comparison?.verified ?? false}
+        expectedOverlays={comparison?.operations ?? []}
         activePage={activePage}
         pageCount={pageCount}
         onPageChange={onPageChange}

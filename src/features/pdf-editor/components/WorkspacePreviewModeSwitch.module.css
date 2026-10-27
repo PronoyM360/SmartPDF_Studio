@@ -3,13 +3,70 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 6px 10px;
+  padding: 6px 14px;
   border-bottom: 1px solid var(--sps-border);
-  background: var(--sps-surface-muted);
+  background: var(--sps-surface);
   flex-shrink: 0;
+}
+
+.root :global(.ant-segmented) {
+  max-width: 100%;
+  font-size: var(--sps-text-xs);
 }
 
 .actions :global(.ant-tag) {
   margin-inline-end: 0;
+}
+
+.actions :global(.ant-btn-variant-text) {
+  color: var(--sps-text-muted);
+}
+
+.actions :global(.ant-btn-variant-text:not(:disabled):hover) {
+  color: var(--sps-text-strong);
+  background: var(--sps-surface-hover);
+}
+
+@media (max-width: 767px) {
+  .root {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .root :global(.ant-segmented) {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .root :global(.ant-segmented::-webkit-scrollbar) {
+    display: none;
+  }
+
+  .root :global(.ant-segmented-group) {
+    width: max-content;
+  }
+
+  .actions {
+    flex: none;
+  }
+
+  /* Icon-only secondary actions on phones; labels stay available to assistive tech. */
+  .actions :global(.ant-btn > .ant-btn-icon + span) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .actions :global(.ant-btn-icon-only),
+  .actions :global(.ant-btn) {
+    min-width: 40px;
+    padding-inline: 8px;
+  }
 }

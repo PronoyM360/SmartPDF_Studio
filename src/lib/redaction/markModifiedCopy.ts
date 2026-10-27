@@ -3,6 +3,8 @@ import { StandardFonts, degrees, rgb, type PDFDocument } from 'pdf-lib'
 const NOTICE_SIZE_PT = 6.5
 const NOTICE_MARGIN_PT = 6
 
+export const EDITED_COPY_PRODUCER = 'SmartPDF Studio — edited copy (saved with pdf-lib)'
+
 /**
  * Where the visual bottom-left corner of a rotated page lies in user space, and
  * which text rotation reads left-to-right on screen there.
@@ -25,22 +27,37 @@ function noticeAnchor(
 }
 
 /**
- * Makes the edited status visible in the exported copy: a small notice in the
- * visual bottom-left margin of each modified page, plus document keywords.
- * Returns the notice text drawn on each page.
+ * Records in the document info that this file is a re-saved, edited copy. Title,
+ * author, creator and creation date are left as they were.
  */
-export async function markModifiedCopy(
+export function labelEditedCopyMetadata(
   pdfDoc: PDFDocument,
-  modifiedPages: ReadonlyMap<number, string>,
-  documentSummary: string,
+  documentSummary: string | null,
   dateLabel: string,
-): Promise<Map<number, string>> {
+  now: Date = new Date(),
+): void {
+  pdfDoc.setProducer(EDITED_COPY_PRODUCER)
+  pdfDoc.setModificationDate(now)
+  if (!documentSummary) {
+    return
+  }
   const existing = pdfDoc.getKeywords()
   pdfDoc.setKeywords([
     ...(existing ? [existing] : []),
     `Modified copy (SmartPDF Studio, ${dateLabel}): ${documentSummary}`,
   ])
+}
 
+/**
+ * Makes the edited status visible in the exported copy: a small notice in the
+ * visual bottom-left margin of each modified page. Returns the notice text drawn
+ * on each page.
+ */
+export async function markModifiedCopy(
+  pdfDoc: PDFDocument,
+  modifiedPages: ReadonlyMap<number, string>,
+  dateLabel: string,
+): Promise<Map<number, string>> {
   const drawn = new Map<number, string>()
   if (modifiedPages.size === 0) {
     return drawn

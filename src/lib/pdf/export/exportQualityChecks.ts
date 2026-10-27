@@ -1,26 +1,43 @@
-import { loadPdfLibDocument } from '@/lib/pdf/pdfLibBridge'
-import { openPdfDocument } from '@/lib/pdf/openPdfDocument'
-import { renderPdfPage } from '@/lib/pdf/renderPdfPage'
+import { loadPdfLibDocument, PdfLibLoadError } from '@/lib/pdf/pdfLibBridge'
 import type { PdfSource } from '@/types'
 import type { OverlayObject } from '@/types/overlayObjects'
 import {
   exportEditedPdf,
+  exportLimitations,
   ExportValidationError,
   type ExportEditedPdfResult,
 } from '@/lib/pdf/export/exportEditedPdf'
 import { validateExportOverlays } from '@/lib/pdf/export/validateExportOverlays'
 import { comparePageFingerprints } from '@/lib/pdf/export/pageFingerprints'
 import type { ImageBytesProvider } from '@/lib/pdf/export/drawOverlays'
+import {
+  describeExcludedOperations,
+  selectExportOperations,
+  type ExcludedOperation,
+} from '@/lib/pdf/export/exportOperations'
+import { openBrowserExportReader, type OpenExportPdfReader } from '@/lib/pdf/export/exportPdfReader'
+import type { ExportProgress } from '@/lib/pdf/export/exportProgress'
+import {
+  MAX_UNTOUCHED_PIXEL_DIFFERENCE,
+  type EditCheckStatus,
+  type ExportInspection,
+} from '@/lib/pdf/export/inspectExportedPdf'
+import type { ExportVerificationResult } from '@/lib/pdf/export/verifyExportedPdf'
 import { openBrowserInspector } from '@/lib/redaction/browserPdfTools'
 import {
   describeExportedModifications,
-  exportableOverlayObjects,
   requiresModifiedCopyLabel,
+  summarizeModifications,
 } from '@/lib/redaction/maskModes'
 import type { OpenPdfInspector } from '@/lib/redaction/types'
 import { MIN_FILL_COVERAGE } from '@/lib/redaction/verifyRedactedExport'
 
 export type ExportQualityCheckStatus = 'passed' | 'warning' | 'failed' | 'not_checked'
+
+export interface ExportQualityCheckSubItem {
+  readonly status: ExportQualityCheckStatus
+  readonly text: string
+}
 
 export interface ExportQualityCheckItem {
   readonly id: string
@@ -28,6 +45,7 @@ export interface ExportQualityCheckItem {
   readonly status: ExportQualityCheckStatus
   readonly detail: string
   readonly approximate?: boolean
+  readonly subItems?: readonly ExportQualityCheckSubItem[]
 }
 
 export interface ExportQualityReport {
@@ -35,20 +53,28 @@ export interface ExportQualityReport {
   readonly canDownload: boolean
   readonly exportResult: ExportEditedPdfResult | null
   readonly blockingMessage: string | null
+  /** What the export cannot guarantee, regardless of the check results. */
+  readonly limitations: readonly string[]
+  /** Editor objects that were deliberately left out of the export. */
+  readonly excluded: readonly ExcludedOperation[]
 }
 
 export interface RunExportQualityChecksOptions {
   source: PdfSource
   overlays: readonly OverlayObject[]
+  /** Last committed snapshot; live edits not in it are excluded. */
+  committedOverlays?: readonly OverlayObject[]
   getImageBytes: ImageBytesProvider
   expectedPageCount: number
-  onProgress?: (message: string) => void
-  /** When false (e.g. unit tests without canvas), skips PDF.js render probe. */
-  includeRenderProbe?: boolean
+  onProgress?: (progress: ExportProgress) => void
+  /** When false, skips reopening the export with PDF.js. Defaults to true. */
+  inspectWithPdfJs?: boolean
   /** Adds a visible "Modified copy" notice to changed pages. */
   markModifiedPages?: boolean
   /** Defaults to the PDF.js + canvas inspector when a browser document exists. */
   openInspector?: OpenPdfInspector
+  /** Defaults to the browser PDF.js reader when a browser document exists. */
+  openReader?: OpenExportPdfReader
 }
 
 function item(
@@ -57,8 +83,16 @@ function item(
   status: ExportQualityCheckStatus,
   detail: string,
   approximate = false,
+  subItems?: readonly ExportQualityCheckSubItem[],
 ): ExportQualityCheckItem {
-  return { id, title, status, detail, approximate: approximate || undefined }
+  return {
+    id,
+    title,
+    status,
+    detail,
+    approximate: approximate || undefined,
+    ...(subItems && subItems.length > 0 ? { subItems } : {}),
+  }
 }
 
 const MAX_RENDER_PROBE_PAGES = 6
@@ -69,45 +103,6 @@ export function renderProbePages(overlays: readonly OverlayObject[], pageCount: 
     .filter((index) => index >= 0 && index < pageCount)
     .sort((a, b) => a - b)
   return edited.length > 0 ? edited.slice(0, MAX_RENDER_PROBE_PAGES) : [0]
-}
-
-async function probeRenderExportedPdf(
-  bytes: Uint8Array,
-  pageIndices: readonly number[],
-): Promise<{
-  ok: boolean
-  detail: string
-}> {
-  if (typeof document === 'undefined') {
-    return { ok: false, detail: 'Render probe skipped (no browser document).' }
-  }
-  let pdf
-  const canvas = document.createElement('canvas')
-  try {
-    const opened = await openPdfDocument(bytes.slice())
-    pdf = opened.pdf
-    for (const pageIndex of pageIndices) {
-      const page = await pdf.getPage(pageIndex + 1)
-      await renderPdfPage({ page, canvas, scale: 0.5, devicePixelRatio: 1 }).promise
-      page.cleanup()
-    }
-    await pdf.cleanup()
-    const list = pageIndices.map((index) => index + 1).join(', ')
-    return {
-      ok: true,
-      detail: `Reopened the exported file and rendered page ${list} with PDF.js (approximate viewer check).`,
-    }
-  } catch (cause) {
-    if (pdf) {
-      await pdf.cleanup().catch(() => undefined)
-    }
-    const message =
-      cause instanceof Error ? cause.message : 'Could not render exported PDF.'
-    return { ok: false, detail: message }
-  } finally {
-    canvas.width = 0
-    canvas.height = 0
-  }
 }
 
 /** Plain statement of what OCR-assisted edits are, so nobody mistakes them for originals. */
@@ -147,28 +142,255 @@ export function ocrEditCheck(overlays: readonly OverlayObject[]): ExportQualityC
   )
 }
 
+export function committedOnlyCheck(
+  excluded: readonly ExcludedOperation[],
+  exportedCount: number,
+): ExportQualityCheckItem {
+  const note = describeExcludedOperations(excluded)
+  const live = excluded.filter((entry) => entry.reason === 'uncommitted').length
+  if (live > 0) {
+    return item(
+      'committed_only',
+      'Only committed edits are exported',
+      'warning',
+      `${note} Finish or commit those edits and run the checks again if they should be included.`,
+    )
+  }
+  return item(
+    'committed_only',
+    'Only committed edits are exported',
+    'passed',
+    `${exportedCount} committed edit(s) exported. Drafts, pending replacements and selections are never part of the export.${note ? ` ${note}` : ''}`,
+  )
+}
+
+export function documentFeaturesCheck(featureWarnings: readonly string[]): ExportQualityCheckItem {
+  if (featureWarnings.length === 0) {
+    return item(
+      'document_features',
+      'Document structure supports editing',
+      'passed',
+      'No signatures, encryption, XFA forms, revision history or overlapping annotations were detected.',
+    )
+  }
+  return item(
+    'document_features',
+    'Document structure supports editing',
+    'warning',
+    `${featureWarnings.length} point(s) about this document affect the edited copy.`,
+    false,
+    featureWarnings.map((text) => ({ status: 'warning' as const, text })),
+  )
+}
+
+export function contentPreservationCheck(verification: ExportVerificationResult): ExportQualityCheckItem {
+  const integrity = verification.contentIntegrity
+  if (!integrity) {
+    return item(
+      'content_preserved',
+      'Untouched page content is preserved',
+      'not_checked',
+      'Content streams were not compared.',
+    )
+  }
+  if (!integrity.ok) {
+    return item(
+      'content_preserved',
+      'Untouched page content is preserved',
+      'failed',
+      integrity.errors.join(' '),
+    )
+  }
+  const identical = integrity.pages.filter((page) => page.status === 'identical').length
+  const preserved = integrity.pages.filter((page) => page.status === 'preserved').length
+  const replaced = integrity.pages.filter((page) => page.status === 'replaced').length
+  const parts = [
+    `${identical} untouched page(s) keep their content streams byte-for-byte`,
+    preserved > 0 ? `${preserved} edited page(s) keep their original streams with new drawing added on top` : null,
+    replaced > 0 ? `${replaced} redacted page(s) were intentionally replaced by an image` : null,
+  ].filter(Boolean)
+  return item(
+    'content_preserved',
+    'Untouched page content is preserved',
+    'passed',
+    `${parts.join('; ')}. Page order matches the original. The file as a whole is re-saved by pdf-lib, so it is not byte-identical.`,
+  )
+}
+
+export function editorArtifactCheck(
+  verification: ExportVerificationResult,
+  overlays: readonly OverlayObject[],
+): ExportQualityCheckItem {
+  const unexpectedKind = overlays.find(
+    (object) => !['text', 'image', 'mask', 'annotation'].includes(object.kind),
+  )
+  if (unexpectedKind) {
+    return item(
+      'no_editor_chrome',
+      'Editing guides and selection handles excluded',
+      'failed',
+      'Unexpected object type in committed edits.',
+    )
+  }
+  if (verification.addedStrokeOperators === null) {
+    return item(
+      'no_editor_chrome',
+      'Editing guides and selection handles excluded',
+      'passed',
+      'The export is generated from the edit data (text, image, mask and annotation objects), not from the editor canvas, so handles and guides are never drawn.',
+    )
+  }
+  if (verification.addedStrokeOperators > 0) {
+    return item(
+      'no_editor_chrome',
+      'Editing guides and selection handles excluded',
+      'failed',
+      `${verification.addedStrokeOperators} outline (stroke) command(s) were found in the drawing added to the pages. Edits only fill shapes, draw text and place images, so these are unexpected.`,
+    )
+  }
+  return item(
+    'no_editor_chrome',
+    'Editing guides and selection handles excluded',
+    'passed',
+    'The export is generated from the edit data, not the editor canvas. The drawing added to each edited page contains only fills, text and images — no outlines, handles or guides.',
+  )
+}
+
+const EDIT_STATUS: Record<EditCheckStatus, ExportQualityCheckStatus> = {
+  verified: 'passed',
+  warning: 'warning',
+  failed: 'failed',
+  not_checked: 'not_checked',
+}
+
+/** Checks derived from reopening the export with PDF.js. */
+export function inspectionChecks(
+  inspection: ExportInspection | null,
+  requested: boolean,
+): ExportQualityCheckItem[] {
+  if (!inspection) {
+    const detail = requested
+      ? 'PDF.js is not available in this environment, so the export was not reopened for inspection.'
+      : 'Reopening with PDF.js was turned off for this run.'
+    return [
+      item('pdfjs_reopen', 'Exported file reopens in PDF.js', 'not_checked', detail),
+      item('untouched_pages', 'Untouched pages match the original', 'not_checked', detail),
+      item('edits_visible', 'Edits are visible in the exported file', 'not_checked', detail),
+    ]
+  }
+  if (!inspection.opened) {
+    const detail = inspection.error ?? 'PDF.js could not open the exported file.'
+    return [item('pdfjs_reopen', 'Exported file reopens in PDF.js', 'failed', detail)]
+  }
+
+  const checks: ExportQualityCheckItem[] = []
+  const countsMatch = inspection.originalPageCount === inspection.exportedPageCount
+  checks.push(
+    item(
+      'pdfjs_reopen',
+      'Exported file reopens in PDF.js',
+      countsMatch ? 'passed' : 'failed',
+      countsMatch
+        ? `PDF.js (the renderer used by this app) opened the export and reads ${inspection.exportedPageCount} page(s), like the original.`
+        : `PDF.js reads ${inspection.exportedPageCount} page(s) in the export but ${inspection.originalPageCount} in the original.`,
+    ),
+  )
+
+  const untouched = inspection.pages.filter((page) => !page.edited && !page.flattened)
+  if (untouched.length === 0) {
+    checks.push(
+      item('untouched_pages', 'Untouched pages match the original', 'not_checked', 'Every page has edits, so there are no untouched pages to compare.'),
+    )
+  } else {
+    const textCompared = untouched.filter((page) => page.textMatchesOriginal !== null)
+    const textMismatch = textCompared.filter((page) => page.textMatchesOriginal === false)
+    const rendered = untouched.filter((page) => page.pixelDifference !== null)
+    const renderMismatch = rendered.filter((page) => page.pixelDifference! > MAX_UNTOUCHED_PIXEL_DIFFERENCE)
+    const problems = [
+      textMismatch.length > 0 ? `extracted text differs on page ${textMismatch.map((page) => page.pageIndex + 1).join(', ')}` : null,
+      renderMismatch.length > 0
+        ? `rendering differs on page ${renderMismatch.map((page) => `${page.pageIndex + 1} (${(page.pixelDifference! * 100).toFixed(2)}% of pixels)`).join(', ')}`
+        : null,
+    ].filter(Boolean)
+    const scope = [
+      `text compared on ${textCompared.length} of ${untouched.length} untouched page(s)`,
+      rendered.length > 0
+        ? `rendering compared on ${rendered.length} page(s) at low resolution`
+        : 'rendering not available for comparison',
+    ].join('; ')
+    checks.push(
+      problems.length > 0
+        ? item('untouched_pages', 'Untouched pages match the original', 'failed', `${problems.join('; ')} (${scope}).`, true)
+        : item(
+            'untouched_pages',
+            'Untouched pages match the original',
+            'passed',
+            `Untouched pages read and render the same as the original in PDF.js (${scope}).`,
+            true,
+          ),
+    )
+  }
+
+  if (inspection.edits.length === 0) {
+    checks.push(item('edits_visible', 'Edits are visible in the exported file', 'not_checked', 'There are no committed edits to look for.'))
+  } else {
+    const statuses = inspection.edits.map((edit) => EDIT_STATUS[edit.status])
+    const status: ExportQualityCheckStatus = statuses.includes('failed')
+      ? 'failed'
+      : statuses.includes('warning') || statuses.includes('not_checked')
+        ? 'warning'
+        : 'passed'
+    const confirmed = inspection.edits.filter((edit) => edit.status === 'verified' || edit.status === 'warning').length
+    checks.push(
+      item(
+        'edits_visible',
+        'Edits are visible in the exported file',
+        status,
+        `${confirmed} of ${inspection.edits.length} edit(s) confirmed in the reopened file by text extraction and/or rendering.${inspection.renderAvailable ? '' : ' Rendering was unavailable, so only the text layer was checked.'}`,
+        true,
+        inspection.edits.map((edit) => ({
+          status: EDIT_STATUS[edit.status],
+          text: `Page ${edit.pageIndex + 1} · ${edit.title}: ${edit.detail}`,
+        })),
+      ),
+    )
+  }
+  return checks
+}
+
 export async function runExportQualityChecks(
   options: RunExportQualityChecksOptions,
 ): Promise<ExportQualityReport> {
   const checks: ExportQualityCheckItem[] = []
-  const includeRender = options.includeRenderProbe ?? true
+  const inspect = options.inspectWithPdfJs ?? true
+  const browser = typeof document !== 'undefined'
+  const selection = selectExportOperations({
+    present: options.overlays,
+    committed: options.committedOverlays,
+  })
+  const limitations = exportLimitations(summarizeModifications(selection.operations))
+  const finish = (
+    exportResult: ExportEditedPdfResult | null,
+    blockingMessage: string | null,
+  ): ExportQualityReport =>
+    finalize(checks, exportResult, blockingMessage, limitations, selection.excluded)
 
-  options.onProgress?.('Checking export readiness…')
+  options.onProgress?.({ stage: 'preparing', message: 'Checking export readiness…' })
 
   let pageCount = options.expectedPageCount
   try {
-    const doc = await loadPdfLibDocument(options.source)
+    const doc = await loadPdfLibDocument(options.source, { updateMetadata: false })
     pageCount = doc.getPageCount()
   } catch (cause) {
     const detail =
-      cause instanceof Error
+      cause instanceof PdfLibLoadError || cause instanceof Error
         ? cause.message
         : 'The original PDF could not be loaded for export.'
     checks.push(item('can_export', 'PDF can be exported', 'failed', detail))
-    return finalize(checks, null, detail)
+    return finish(null, detail)
   }
 
-  const exportedOverlays = exportableOverlayObjects(options.overlays)
+  const exportedOverlays = selection.operations
   const validation = validateExportOverlays(
     exportedOverlays,
     pageCount,
@@ -192,7 +414,7 @@ export async function runExportQualityChecks(
         'Fix validation errors before exporting.',
       ),
     )
-    return finalize(checks, null, validation.blockingErrors[0] ?? 'Export blocked.')
+    return finish(null, validation.blockingErrors[0] ?? 'Export blocked.')
   }
 
   const committedCount = exportedOverlays.length
@@ -229,33 +451,13 @@ export async function runExportQualityChecks(
     )
   }
 
-  const onlyOverlayKinds = options.overlays.every(
-    (object) =>
-      object.kind === 'text' || object.kind === 'image' || object.kind === 'mask',
-  )
-  checks.push(
-    onlyOverlayKinds
-      ? item(
-          'no_editor_chrome',
-          'Editing guides and selection handles excluded',
-          'passed',
-          'Committed data contains only exportable overlay types (text, image, mask). Handles are editor-only.',
-        )
-      : item(
-          'no_editor_chrome',
-          'Editing guides and selection handles excluded',
-          'failed',
-          'Unexpected overlay type in committed edits.',
-        ),
-  )
-
   if (committedCount === 0) {
     checks.push(
       item(
         'committed_edits',
         'Committed edits are present',
         'not_checked',
-        'No overlays committed — export will match the original upload.',
+        'No overlays committed — the export re-saves the original without visible changes.',
       ),
     )
   } else if (exportableCount === 0) {
@@ -293,12 +495,12 @@ export async function runExportQualityChecks(
     exportResult = await exportEditedPdf({
       source: options.source,
       overlays: options.overlays,
+      committedOverlays: options.committedOverlays,
       getImageBytes: options.getImageBytes,
       onProgress: options.onProgress,
       markModifiedPages: options.markModifiedPages,
-      openInspector:
-        options.openInspector ??
-        (typeof document !== 'undefined' ? openBrowserInspector : undefined),
+      openInspector: options.openInspector ?? (browser ? openBrowserInspector : undefined),
+      openReader: inspect ? (options.openReader ?? (browser ? openBrowserExportReader : undefined)) : undefined,
     })
     checks.push(
       item(
@@ -317,15 +519,18 @@ export async function runExportQualityChecks(
           item('valid_objects', 'No invalid or incomplete editing objects', 'failed', detail),
         )
       }
-      return finalize(checks, null, cause.details[0] ?? 'Export failed.')
+      return finish(null, cause.details[0] ?? 'Export failed.')
     }
     const detail =
       cause instanceof Error ? cause.message : 'Export failed for an unknown reason.'
     checks.push(item('can_export', 'PDF can be exported', 'failed', detail))
-    return finalize(checks, null, detail)
+    return finish(null, detail)
   }
 
   const verification = exportResult.verification
+  checks.push(committedOnlyCheck(selection.excluded, exportResult.exportedOverlayCount))
+  checks.push(documentFeaturesCheck(exportResult.featureWarnings))
+  checks.push(editorArtifactCheck(verification, options.overlays))
 
   if (!verification.readable) {
     checks.push(
@@ -345,6 +550,7 @@ export async function runExportQualityChecks(
         'Exported file was parsed successfully with pdf-lib.',
       ),
     )
+    checks.push(contentPreservationCheck(verification))
   }
 
   const structure = comparePageFingerprints(
@@ -383,9 +589,10 @@ export async function runExportQualityChecks(
     )
   }
 
-  const layoutErrors = structure.errors.filter(
-    (error) => !error.includes('Page count'),
-  )
+  const layoutErrors = [
+    ...structure.errors.filter((error) => !error.includes('Page count')),
+    ...(exportResult.inspection?.geometryErrors ?? []),
+  ]
   if (layoutErrors.length > 0) {
     checks.push(
       item(
@@ -401,7 +608,7 @@ export async function runExportQualityChecks(
         'page_layout',
         'Page dimensions and rotation preserved',
         'passed',
-        'Page size and rotation match the source within tolerance.',
+        `MediaBox, CropBox and rotation of every page match the source (pdf-lib)${exportResult.inspection?.opened ? ', and PDF.js reads the same visible size and rotation' : ''}.`,
       ),
     )
   } else {
@@ -420,46 +627,10 @@ export async function runExportQualityChecks(
   if (ocrCheck) {
     checks.push(ocrCheck)
   }
+  checks.push(...inspectionChecks(exportResult.inspection, inspect))
 
-  if (includeRender) {
-    options.onProgress?.('Rendering edited pages from the exported file…')
-    const render = await probeRenderExportedPdf(
-      exportResult.bytes,
-      renderProbePages(validation.exportableOverlays, pageCount),
-    )
-    if (render.ok) {
-      checks.push(
-        item(
-          'render_preview',
-          'Exported PDF can be rendered for inspection',
-          'passed',
-          render.detail,
-          true,
-        ),
-      )
-    } else {
-      checks.push(
-        item(
-          'render_preview',
-          'Exported PDF can be rendered for inspection',
-          'warning',
-          render.detail,
-          true,
-        ),
-      )
-    }
-  } else {
-    checks.push(
-      item(
-        'render_preview',
-        'Exported PDF can be rendered for inspection',
-        'not_checked',
-        'Render probe was not run in this environment.',
-      ),
-    )
-  }
-
-  return finalize(checks, exportResult, null)
+  options.onProgress?.({ stage: 'done', message: 'Checks finished.' })
+  return finish(exportResult, null)
 }
 
 function pageList(indices: readonly number[]): string {
@@ -579,13 +750,13 @@ function modificationChecks(
             'modified_label',
             'Exported copy is marked as modified',
             'passed',
-            `Changed pages carry a small "Modified copy — ${described}" notice and the document keywords record the changes.`,
+            `Changed pages carry a small "Modified copy — ${described}" notice, the file is named "-edited", and the document info (producer, modification date, keywords) records the changes.`,
           )
         : item(
             'modified_label',
             'Exported copy is marked as modified',
             'warning',
-            'The exported copy is not labelled as modified. Turn on labelling if the document is official or will be shared.',
+            'The file is named "-edited" and its document info records the changes, but the pages carry no visible notice. Turn on labelling if the document is official or will be shared.',
           ),
     )
   }
@@ -596,24 +767,31 @@ const CHECK_ORDER = [
   'can_export',
   'redaction',
   'redaction_elsewhere',
+  'edits_visible',
   'amount_edits',
   'ocr_edits',
   'visual_covers',
   'hidden_regions',
   'modified_label',
+  'document_features',
+  'committed_only',
+  'pdfjs_reopen',
   'reopen_file',
   'page_count',
   'page_layout',
+  'content_preserved',
+  'untouched_pages',
   'committed_edits',
   'no_editor_chrome',
   'valid_objects',
-  'render_preview',
 ] as const
 
 function finalize(
   checks: ExportQualityCheckItem[],
   exportResult: ExportEditedPdfResult | null,
   blockingMessage: string | null,
+  limitations: readonly string[],
+  excluded: readonly ExcludedOperation[],
 ): ExportQualityReport {
   const orderIndex = (id: string): number => {
     const index = CHECK_ORDER.indexOf(id as (typeof CHECK_ORDER)[number])
@@ -626,6 +804,8 @@ function finalize(
     canDownload: Boolean(exportResult) && !hasFailure,
     exportResult,
     blockingMessage,
+    limitations: exportResult?.limitations ?? limitations,
+    excluded,
   }
 }
 

@@ -1,8 +1,11 @@
+import { AnnotationPropertiesPanel } from '@/features/annotations/AnnotationPropertiesPanel'
 import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
 import { ImagePropertiesPanel } from '@/features/image-tools/ImagePropertiesPanel'
 import { MaskPropertiesPanel } from '@/features/image-tools/MaskPropertiesPanel'
+import { RegionSelectionPanel } from '@/features/region-selection/RegionSelectionPanel'
 import { TextPropertiesPanel } from '@/features/text-tools/TextPropertiesPanel'
 import {
+  isAnnotationOverlay,
   isImageOverlay,
   isMaskOverlay,
   isTextOverlay,
@@ -21,6 +24,9 @@ export function OverlayPropertiesPanel({
   const { getSelectedObject, activeToolId } = useEditorSession()
   const selected = getSelectedObject()
 
+  if (activeToolId === 'region') {
+    return <RegionSelectionPanel />
+  }
   if (selected && isTextOverlay(selected)) {
     return <TextPropertiesPanel object={selected} />
   }
@@ -35,6 +41,9 @@ export function OverlayPropertiesPanel({
         renderScale={renderScale}
       />
     )
+  }
+  if (selected && isAnnotationOverlay(selected)) {
+    return <AnnotationPropertiesPanel object={selected} />
   }
 
   if (activeToolId === 'image') {

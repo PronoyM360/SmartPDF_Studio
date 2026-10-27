@@ -31,7 +31,7 @@ export async function openPdfDocument(
   try {
     const pdf = await loadingTask.promise
     if (signal?.aborted) {
-      await pdf.cleanup()
+      await loadingTask.destroy()
       throw toUserFacingPdfError(new DOMException('Aborted', 'AbortError'))
     }
     return { pdf, pageCount: pdf.numPages }
@@ -41,6 +41,7 @@ export async function openPdfDocument(
   }
 }
 
+/** Destroys the document and its loading task; `cleanup()` alone keeps the worker-side copy alive. */
 export async function releasePdfDocument(pdf: PDFDocumentProxy): Promise<void> {
-  await pdf.cleanup()
+  await pdf.loadingTask.destroy()
 }

@@ -3,6 +3,7 @@ import {
   DollarOutlined,
   EditOutlined,
   FontSizeOutlined,
+  GatewayOutlined,
   HighlightOutlined,
   HolderOutlined,
   PictureOutlined,
@@ -31,6 +32,7 @@ const RAIL_BUTTONS: RailButton[] = [
   { id: 'detect-sections', label: 'Detect sections', icon: <ProfileOutlined /> },
   { id: 'text', label: 'Add text', icon: <FontSizeOutlined />, shortcut: 'T' },
   { id: 'image', label: 'Add image', icon: <PictureOutlined /> },
+  { id: 'region', label: 'Select region', icon: <GatewayOutlined />, shortcut: 'R' },
   { id: 'highlight', label: 'Mask / erase area', icon: <HighlightOutlined />, shortcut: 'M' },
   { id: 'pan', label: 'Hand / pan', icon: <HolderOutlined />, shortcut: 'H' },
 ]

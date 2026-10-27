@@ -4,6 +4,7 @@ export type EditorToolId =
   | 'text'
   | 'image'
   | 'highlight'
+  | 'region'
   | 'export'
 
 export interface EditorToolDefinition {

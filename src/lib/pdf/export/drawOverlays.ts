@@ -28,6 +28,7 @@ import {
 import {
   displayLocalPointToUser,
   displaySize,
+  imageOverlayPlacement,
   normalizePageRotation,
   rotatedImagePlacement,
   type QuarterTurn,
@@ -97,6 +98,7 @@ async function drawImageOverlay(
   object: ImageOverlayObject,
   getImageBytes: ImageBytesProvider,
   warnings: string[],
+  rotation: QuarterTurn,
 ): Promise<void> {
   const bytes = getImageBytes(object.assetId)
   if (!bytes) {
@@ -104,17 +106,39 @@ async function drawImageOverlay(
     return
   }
   const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8
-  const embedded = isJpeg
-    ? await pdfDoc.embedJpg(bytes)
-    : await pdfDoc.embedPng(bytes)
+  let embedded
+  try {
+    embedded = isJpeg ? await pdfDoc.embedJpg(bytes) : await pdfDoc.embedPng(bytes)
+  } catch {
+    warnings.push(
+      `An image overlay on page ${object.pageIndex + 1} was skipped: only PNG and JPEG images can be embedded.`,
+    )
+    return
+  }
 
+  const placement = imageOverlayPlacement(object.bounds, rotation, object.rotation)
   page.drawImage(embedded, {
-    x: object.bounds.x,
-    y: object.bounds.y,
-    width: object.bounds.width,
-    height: object.bounds.height,
-    rotate: degrees(object.rotation),
+    x: placement.x,
+    y: placement.y,
+    width: placement.width,
+    height: placement.height,
+    rotate: degrees(placement.rotateDegrees),
   })
+}
+
+/** Standard PDF fonts only cover WinAnsi; unsupported characters would abort the save. */
+function encodableLine(font: PDFFont, line: string, replaced: Set<string>): string {
+  let out = ''
+  for (const char of line) {
+    try {
+      font.encodeText(char)
+      out += char
+    } catch {
+      replaced.add(char)
+      out += '?'
+    }
+  }
+  return out
 }
 
 async function drawTextOverlay(
@@ -148,7 +172,13 @@ async function drawTextOverlay(
     })
   }
   const color = hexToRgbColor(object.color)
-  const lines = object.content.split('\n')
+  const replaced = new Set<string>()
+  const lines = object.content.split('\n').map((line) => encodableLine(font, line, replaced))
+  if (replaced.size > 0) {
+    warnings.push(
+      `Text on page ${object.pageIndex + 1} contains character(s) ${[...replaced].map((char) => `"${char}"`).join(', ')} that the standard PDF fonts cannot write; they were replaced with "?". Check this edit before sharing.`,
+    )
+  }
   const lineHeight = object.fontSize * TEXT_OVERLAY_LINE_HEIGHT_RATIO
 
   const spacing = object.letterSpacing ?? 0
@@ -309,7 +339,7 @@ export async function drawOverlaysOnPage(
       continue
     }
     if (isImageOverlay(object)) {
-      await drawImageOverlay(pdfDoc, page, object, getImageBytes, warnings)
+      await drawImageOverlay(pdfDoc, page, object, getImageBytes, warnings, rotation)
       continue
     }
     if (!isTextOverlay(object)) {

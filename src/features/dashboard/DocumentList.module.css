@@ -1,35 +1,95 @@
 .list {
+  overflow: hidden;
   background: var(--sps-surface);
   border: 1px solid var(--sps-border);
-  border-radius: 8px;
+  border-radius: var(--sps-radius-lg);
+  box-shadow: var(--sps-shadow-sm);
 }
 
 .item {
-  padding-inline: 14px !important;
+  padding: 14px 18px !important;
+  border-block-end-color: var(--sps-border-subtle) !important;
+  transition: background-color var(--sps-duration-fast) var(--sps-ease-standard);
+}
+
+.item:hover {
+  background: var(--sps-surface-muted);
+}
+
+.item :global(.ant-list-item-meta) {
+  align-items: center;
+  min-width: 0;
+}
+
+.item :global(.ant-list-item-meta-content) {
+  min-width: 0;
+}
+
+.item :global(.ant-list-item-meta-title) {
+  margin-bottom: 2px !important;
+}
+
+.item :global(.ant-list-item-action) {
+  margin-inline-start: 16px;
+}
+
+.item :global(.ant-list-item-action > li) {
+  padding-inline: 2px;
+}
+
+.item :global(.ant-list-item-action-split) {
+  display: none;
 }
 
 .avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: var(--sps-surface-muted);
-  color: var(--sps-accent);
-  font-size: 18px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--sps-radius-md);
+  background: var(--sps-danger-soft);
+  color: var(--sps-danger);
+  font-size: 19px;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.12);
 }
 
 .fileName {
-  font-size: 0.88rem;
+  font-size: var(--sps-text-md);
+  font-weight: var(--sps-weight-semibold) !important;
+  word-break: break-word;
 }
 
 .meta {
-  font-size: 0.78rem;
+  font-size: var(--sps-text-xs);
   color: var(--sps-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .sampleTag {
   color: var(--sps-text-muted);
-  background: var(--sps-surface-muted);
+  background: var(--sps-surface-sunken);
+}
+
+@media (max-width: 575px) {
+  .item {
+    padding: 14px !important;
+  }
+
+  .item :global(.ant-list-item-action) {
+    display: flex;
+    width: 100%;
+    margin-inline-start: 0;
+    margin-top: 10px;
+    padding-left: 56px;
+    gap: 4px;
+  }
+
+  .item :global(.ant-list-item-action > li) {
+    padding: 0;
+  }
+
+  .item :global(.ant-list-item-action .ant-btn) {
+    min-height: 40px;
+  }
 }

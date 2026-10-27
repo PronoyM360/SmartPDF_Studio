@@ -39,6 +39,8 @@ export interface ModificationSummary {
   readonly ocrEdits: number
   readonly ocrEditPages: readonly number[]
   readonly images: number
+  /** Comment annotations; they do not change page content. */
+  readonly annotations: number
   readonly redactedPages: readonly number[]
 }
 
@@ -55,6 +57,7 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
   let amountEdits = 0
   let ocrEdits = 0
   let images = 0
+  let annotations = 0
   const redactedPages = new Set<number>()
   const amountEditPages = new Set<number>()
   const ocrEditPages = new Set<number>()
@@ -83,6 +86,10 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
       images += 1
       continue
     }
+    if (object.kind === 'annotation') {
+      annotations += 1
+      continue
+    }
     const mode = maskModeOf(object)
     if (mode === 'hide') {
       hidden += 1
@@ -103,6 +110,7 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
     ocrEdits,
     ocrEditPages: [...ocrEditPages].sort((a, b) => a - b),
     images,
+    annotations,
     redactedPages: [...redactedPages].sort((a, b) => a - b),
   }
 }
@@ -131,6 +139,9 @@ export function describeExportedModifications(summary: ModificationSummary): str
   }
   if (summary.images > 0) {
     parts.push(plural(summary.images, 'added image'))
+  }
+  if (summary.annotations > 0) {
+    parts.push(plural(summary.annotations, 'annotation'))
   }
   return parts.length > 0 ? parts.join(', ') : null
 }

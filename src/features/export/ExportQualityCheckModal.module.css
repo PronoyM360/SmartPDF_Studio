@@ -4,6 +4,39 @@
   line-height: 1.45;
 }
 
+.steps {
+  margin-bottom: 12px;
+}
+
+.subList {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.subItem {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.subItem :global(.anticon) {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.limits {
+  margin-top: 8px;
+}
+
+.limitList {
+  margin: 0;
+  padding-left: 18px;
+}
+
 .progress {
   display: flex;
   align-items: center;

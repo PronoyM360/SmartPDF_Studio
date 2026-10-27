@@ -24,7 +24,7 @@ export function overlayObjectsListen(
   if (activeToolId === 'pan' || activeToolId === 'export') {
     return false
   }
-  if (activeToolId === 'highlight') {
+  if (activeToolId === 'highlight' || activeToolId === 'region') {
     return false
   }
   if (activeToolId === 'image' && pendingImageAssetId) {

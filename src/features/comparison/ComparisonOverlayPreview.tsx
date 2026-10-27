@@ -1,6 +1,7 @@
 import type Konva from 'konva'
 import { useEffect, useMemo, useRef } from 'react'
 import { Layer, Stage } from 'react-konva'
+import { AnnotationObjectNode } from '@/features/annotations/AnnotationObjectNode'
 import { ImageObjectNode } from '@/features/image-tools/ImageObjectNode'
 import { MaskObjectNode } from '@/features/image-tools/MaskObjectNode'
 import { TextObjectNode } from '@/features/text-tools/TextObjectNode'
@@ -8,6 +9,7 @@ import { usePageViewport } from '@/features/text-tools/usePageViewport'
 import { createPageDisplayTransform } from '@/lib/pdf'
 import {
   compareOverlayLayerOrder,
+  isAnnotationOverlay,
   isImageOverlay,
   isMaskOverlay,
   isTextOverlay,
@@ -100,6 +102,9 @@ export function ComparisonOverlayPreview({
             }
             if (isImageOverlay(object)) {
               return <ImageObjectNode key={object.id} object={object} {...shared} onChange={noop} />
+            }
+            if (isAnnotationOverlay(object)) {
+              return <AnnotationObjectNode key={object.id} object={object} {...shared} onBoundsChange={noop} />
             }
             if (isTextOverlay(object)) {
               return (

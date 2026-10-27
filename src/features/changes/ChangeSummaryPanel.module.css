@@ -53,16 +53,28 @@
   border-radius: var(--sps-radius-md);
   cursor: pointer;
   font: inherit;
+  color: inherit;
+  transition:
+    border-color var(--sps-duration-fast) var(--sps-ease-standard),
+    background-color var(--sps-duration-fast) var(--sps-ease-standard),
+    box-shadow var(--sps-duration-fast) var(--sps-ease-standard);
 }
 
 .row:hover {
-  border-color: #a78bfa;
+  border-color: var(--sps-change-border);
+  box-shadow: var(--sps-shadow-sm);
+}
+
+.row:focus-visible,
+.rowFocused:focus-visible {
+  outline: none;
+  box-shadow: var(--sps-focus-ring);
 }
 
 .rowFocused {
-  border-color: #7c3aed;
-  box-shadow: 0 0 0 1px #7c3aed inset;
-  background: rgba(124, 58, 237, 0.05);
+  border-color: var(--sps-change);
+  box-shadow: 0 0 0 1px var(--sps-change) inset;
+  background: var(--sps-change-soft);
 }
 
 .rowHead {

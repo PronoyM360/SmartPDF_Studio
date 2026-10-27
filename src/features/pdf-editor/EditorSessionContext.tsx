@@ -31,6 +31,7 @@ import { createTextOverlayObject } from '@/features/text-tools/textDefaults'
 import { toUserFacingPdfError } from '@/lib/pdf'
 import type { EditorToolId } from '@/types'
 import type { PagePoint, PageRect } from '@/types'
+import type { AnnotationOverlayObject, AnnotationOverlayPatch } from '@/types/annotationOverlay'
 import type { ImageOverlayObject, ImageOverlayPatch } from '@/types/imageOverlay'
 import type { MaskMode, MaskOverlayObject, MaskOverlayPatch } from '@/types/maskOverlay'
 import type { OverlayObject } from '@/types/overlayObjects'
@@ -71,6 +72,18 @@ interface EditorSessionContextValue {
   ) => MaskOverlayObject
   /** Adds several masks as one undo step. */
   addMaskObjectsWithBounds: (entries: readonly NewMaskInput[]) => MaskOverlayObject[]
+  /** Adds a comment annotation (exported as a PDF annotation, not page content). */
+  addAnnotationObject: (input: {
+    pageIndex: number
+    bounds: PageRect
+    note: string
+    color: string
+  }) => AnnotationOverlayObject
+  updateAnnotationObject: (
+    id: string,
+    patch: AnnotationOverlayPatch,
+    options?: { recordHistory?: boolean },
+  ) => void
   /** Removes overlays by id as one undo step. */
   deleteOverlayObjects: (ids: readonly string[]) => void
   updateTextObject: (
@@ -99,6 +112,8 @@ interface EditorSessionContextValue {
   redo: () => void
   /** Records the current overlay snapshot as one undo step (after live property edits). */
   commitOverlayHistoryStep: () => void
+  /** Last snapshot recorded in the undo history; excludes live edits still in progress. */
+  getCommittedOverlayObjects: () => readonly OverlayObject[]
   applyOverlayTextCorrection: (input: OverlayTextCorrectionInput) => void
   /** Applies multiple overlay corrections in one undo step (e.g. Replace All). */
   applyOverlayTextCorrections: (inputs: readonly OverlayTextCorrectionInput[]) => void
@@ -417,6 +432,25 @@ export function EditorSessionProvider({
     [applyOverlayUpdate],
   )
 
+  const addAnnotationObject = useCallback(
+    (input: { pageIndex: number; bounds: PageRect; note: string; color: string }): AnnotationOverlayObject => {
+      const now = Date.now()
+      const created: AnnotationOverlayObject = {
+        id: crypto.randomUUID(),
+        kind: 'annotation',
+        pageIndex: input.pageIndex,
+        bounds: { ...input.bounds },
+        note: input.note,
+        color: input.color,
+        createdAt: now,
+        updatedAt: now,
+      }
+      applyOverlayUpdate((prev) => [...prev, created])
+      return created
+    },
+    [applyOverlayUpdate],
+  )
+
   const deleteOverlayObjects = useCallback(
     (ids: readonly string[]) => {
       if (ids.length === 0) {
@@ -491,6 +525,11 @@ export function EditorSessionProvider({
     })
   }, [])
 
+  const getCommittedOverlayObjects = useCallback(
+    (): readonly OverlayObject[] => cloneOverlayObjects(committedPresentRef.current),
+    [],
+  )
+
   const updateTextObject = useCallback(
     (id: string, patch: TextOverlayPatch, options?: { recordHistory?: boolean }) =>
       updateObjectById(id, patch, options),
@@ -505,6 +544,12 @@ export function EditorSessionProvider({
 
   const updateMaskObject = useCallback(
     (id: string, patch: MaskOverlayPatch, options?: { recordHistory?: boolean }) =>
+      updateObjectById(id, patch, options),
+    [updateObjectById],
+  )
+
+  const updateAnnotationObject = useCallback(
+    (id: string, patch: AnnotationOverlayPatch, options?: { recordHistory?: boolean }) =>
       updateObjectById(id, patch, options),
     [updateObjectById],
   )
@@ -594,6 +639,8 @@ export function EditorSessionProvider({
       addImageObjectAtPdfPoint,
       addMaskObjectWithBounds,
       addMaskObjectsWithBounds,
+      addAnnotationObject,
+      updateAnnotationObject,
       deleteOverlayObjects,
       updateTextObject,
       updateImageObject,
@@ -608,6 +655,7 @@ export function EditorSessionProvider({
       undo,
       redo,
       commitOverlayHistoryStep,
+      getCommittedOverlayObjects,
       applyOverlayTextCorrection,
       applyOverlayTextCorrections,
       getImageAssetIds,
@@ -615,6 +663,8 @@ export function EditorSessionProvider({
       registerGeneratedImageAsset,
     }),
     [
+      addAnnotationObject,
+      updateAnnotationObject,
       activeToolId,
       overlayObjects,
       selectedObjectId,
@@ -643,6 +693,7 @@ export function EditorSessionProvider({
       undo,
       redo,
       commitOverlayHistoryStep,
+      getCommittedOverlayObjects,
       applyOverlayTextCorrection,
       applyOverlayTextCorrections,
       getImageAssetIds,

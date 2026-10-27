@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   max-width: 100vw;
   overflow: hidden;
   background: var(--sps-canvas);
@@ -48,4 +49,54 @@
   justify-content: center;
   flex: 1;
   min-height: 240px;
+}
+
+/* Mobile drawers: pages slide over from the left, properties open as a bottom sheet. */
+.pagesDrawer :global(.ant-drawer-content-wrapper),
+.pagesDrawer :global(.ant-drawer-section) {
+  max-width: 88vw;
+}
+
+.pagesDrawer :global(.ant-drawer-section),
+.pagesDrawer :global(.ant-drawer-content) {
+  border-radius: 0 var(--sps-radius-xl) var(--sps-radius-xl) 0;
+  padding-top: var(--sps-safe-top);
+  padding-left: var(--sps-safe-left);
+}
+
+.propertiesSheet :global(.ant-drawer-content-wrapper),
+.propertiesSheet :global(.ant-drawer-section) {
+  max-height: calc(100dvh - 48px - var(--sps-safe-top));
+}
+
+.propertiesSheet :global(.ant-drawer-section),
+.propertiesSheet :global(.ant-drawer-content) {
+  border-radius: var(--sps-radius-xl) var(--sps-radius-xl) 0 0;
+  padding-left: var(--sps-safe-left);
+  padding-right: var(--sps-safe-right);
+}
+
+.propertiesSheet :global(.ant-drawer-header) {
+  position: relative;
+  padding-top: 18px;
+}
+
+/* Grab handle affordance for the bottom sheet. */
+.propertiesSheet :global(.ant-drawer-header::before) {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: var(--sps-radius-pill);
+  background: var(--sps-border-strong);
+}
+
+.propertiesSheet :global(.ant-drawer-body),
+.pagesDrawer :global(.ant-drawer-body) {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }

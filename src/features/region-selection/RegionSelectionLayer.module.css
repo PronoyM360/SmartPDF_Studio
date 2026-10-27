@@ -1,0 +1,21 @@
+.host {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  cursor: crosshair;
+}
+
+.actionBar {
+  position: absolute;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--sps-surface-raised, #ffffff);
+  border: 1px solid var(--sps-border, #e2e8f0);
+  border-radius: var(--sps-radius-md, 8px);
+  box-shadow: var(--sps-shadow-lg, 0 4px 14px rgba(15, 23, 42, 0.16));
+  cursor: default;
+  line-height: normal;
+  z-index: 1;
+}

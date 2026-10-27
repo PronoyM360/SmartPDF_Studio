@@ -79,7 +79,7 @@ describe('buildTrackedChanges', () => {
       [0, 'price-updated', 'Price updated'],
       [1, 'ocr-edit', 'Scanned text edited (OCR)'],
       [2, 'section', 'Section hidden'],
-      [2, 'section', 'Section redacted'],
+      [2, 'area', 'Area redacted'],
       [3, 'area', 'Area covered'],
     ])
     expect(changes[0]).toMatchObject({ before: 'Invoice 2025', after: 'Invoice 2026', inExport: true })

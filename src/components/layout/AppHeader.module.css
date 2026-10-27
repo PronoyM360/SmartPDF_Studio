@@ -1,11 +1,18 @@
 .header {
+  position: sticky;
+  top: 0;
+  z-index: var(--sps-z-toolbar);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 20px;
-  background: var(--sps-surface);
+  min-height: 60px;
+  padding: 10px max(24px, var(--sps-safe-right)) 10px max(24px, var(--sps-safe-left));
+  padding-top: calc(10px + var(--sps-safe-top));
+  background: var(--sps-surface-glass);
   border-bottom: 1px solid var(--sps-border);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  backdrop-filter: saturate(180%) blur(12px);
 }
 
 .actions {
@@ -14,4 +21,11 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+@media (max-width: 767px) {
+  .header {
+    min-height: 52px;
+    padding-inline: max(14px, var(--sps-safe-left)) max(14px, var(--sps-safe-right));
+  }
 }

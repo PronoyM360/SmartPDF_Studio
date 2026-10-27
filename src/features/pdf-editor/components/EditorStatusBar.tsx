@@ -13,6 +13,7 @@ const TOOL_HINTS: Record<EditorToolId, string> = {
   text: 'Click to add an overlay text box. Double-click or Enter to edit content.',
   image: 'Upload PNG/JPEG (I), then click to place. Aspect ratio locked by default.',
   highlight: 'Drag a rectangle to add a visual cover (not secure redaction).',
+  region: 'Drag to select a region, then move or resize it. Esc clears · Ctrl+Z undoes the last adjustment.',
   export: 'Use Download PDF in the toolbar to export your edits.',
 }
 
@@ -63,7 +64,7 @@ export function EditorStatusBar({
         {zoomPercent}% zoom
       </Text>
       <span className={styles.divider} aria-hidden />
-      <Text type="secondary" className={styles.hint}>
+      <Text type="secondary" className={styles.hint} title={hint} aria-live="polite">
         {hint}
       </Text>
       <Text type="secondary" className={styles.shortcuts}>

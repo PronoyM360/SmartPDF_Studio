@@ -38,14 +38,17 @@ describe('runExportQualityChecks', () => {
       overlays: [overlay],
       getImageBytes: () => undefined,
       expectedPageCount: 1,
-      includeRenderProbe: false,
+      inspectWithPdfJs: false,
     })
 
     expect(report.canDownload).toBe(true)
     expect(report.checks.find((c) => c.id === 'can_export')?.status).toBe('passed')
     expect(report.checks.find((c) => c.id === 'reopen_file')?.status).toBe('passed')
     expect(report.checks.find((c) => c.id === 'page_count')?.status).toBe('passed')
-    expect(report.checks.find((c) => c.id === 'render_preview')?.status).toBe('not_checked')
+    expect(report.checks.find((c) => c.id === 'content_preserved')?.status).toBe('passed')
+    expect(report.checks.find((c) => c.id === 'no_editor_chrome')?.status).toBe('passed')
+    expect(report.checks.find((c) => c.id === 'pdfjs_reopen')?.status).toBe('not_checked')
+    expect(report.limitations.length).toBeGreaterThan(0)
   })
 
   it('fails when committed text overlay is empty', async () => {
@@ -70,7 +73,7 @@ describe('runExportQualityChecks', () => {
       overlays: [overlay],
       getImageBytes: () => undefined,
       expectedPageCount: 1,
-      includeRenderProbe: false,
+      inspectWithPdfJs: false,
     })
 
     expect(report.canDownload).toBe(false)

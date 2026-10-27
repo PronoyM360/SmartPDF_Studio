@@ -1,5 +1,5 @@
 import { message, Modal } from 'antd'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   buildExportFilename,
   downloadPdfBytes,
@@ -25,14 +25,23 @@ export function usePdfExport({
 }: UsePdfExportOptions) {
   const [status, setStatus] = useState<ExportStatus>('idle')
   const [qualityCheckOpen, setQualityCheckOpen] = useState(false)
-  const [lastExportedBytes, setLastExportedBytes] = useState<Uint8Array | null>(
-    null,
-  )
-  const [lastExportVerified, setLastExportVerified] = useState(false)
-  const [lastQualityReport, setLastQualityReport] = useState<ExportQualityReport | null>(
-    null,
-  )
+  const [lastExport, setLastExport] = useState<{
+    source: PdfSource
+    bytes: Uint8Array
+    report: ExportQualityReport
+    verified: boolean
+  } | null>(null)
   const exportingRef = useRef(false)
+  const revokeDownloadRef = useRef<(() => void) | null>(null)
+  // An export of a previous document must not be offered for comparison.
+  const currentExport = lastExport && lastExport.source === source ? lastExport : null
+
+  useEffect(() => {
+    return () => {
+      revokeDownloadRef.current?.()
+      revokeDownloadRef.current = null
+    }
+  }, [])
 
   const openExportQualityCheck = useCallback((): void => {
     if (!source) {
@@ -57,18 +66,19 @@ export function usePdfExport({
       setStatus('exporting')
       try {
         const filename = buildExportFilename(documentName)
-        downloadPdfBytes(bytes, filename)
-        setLastExportedBytes(bytes.slice())
-        setLastQualityReport(report)
+        revokeDownloadRef.current?.()
+        revokeDownloadRef.current = downloadPdfBytes(bytes, filename)
         const failed = report.checks.filter((check) => check.status === 'failed').length
         const warnings = report.checks.filter((check) => check.status === 'warning').length
-        setLastExportVerified(failed === 0)
+        if (source) {
+          setLastExport({ source, bytes: bytes.slice(), report, verified: failed === 0 })
+        }
 
         if (failed === 0 && warnings === 0) {
-          message.success(`Download started: ${filename}`, 4)
+          message.success(`Download started: ${filename} (edited copy)`, 4)
         } else if (failed === 0) {
           message.warning(
-            `Download started: ${filename}. Review export warnings and compare visually before sharing.`,
+            `Download started: ${filename}. Review export warnings and compare with the original before sharing.`,
             6,
           )
         }
@@ -100,12 +110,16 @@ export function usePdfExport({
             ),
           })
         }
+      } catch (cause) {
+        message.error(
+          cause instanceof Error ? `Download failed: ${cause.message}` : 'Download failed.',
+        )
       } finally {
         exportingRef.current = false
         setStatus('idle')
       }
     },
-    [documentName],
+    [documentName, source],
   )
 
   return {
@@ -114,10 +128,10 @@ export function usePdfExport({
     qualityCheckOpen,
     completeDownload,
     isExporting: status === 'exporting',
-    lastExportedBytes,
-    lastExportVerified,
-    lastQualityReport,
-    hasExportCompare: lastExportedBytes !== null,
+    lastExportedBytes: currentExport?.bytes ?? null,
+    lastExportVerified: currentExport?.verified ?? false,
+    lastQualityReport: currentExport?.report ?? null,
+    hasExportCompare: currentExport !== null,
     overlayObjects,
     getImageBytes,
     source,

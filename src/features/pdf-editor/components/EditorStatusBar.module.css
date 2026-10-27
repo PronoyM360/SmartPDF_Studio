@@ -1,17 +1,21 @@
 .bar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 8px 12px;
-  padding: 6px 12px;
+  gap: 10px;
+  padding: 5px max(14px, var(--sps-safe-right)) calc(5px + var(--sps-safe-bottom))
+    max(14px, var(--sps-safe-left));
   border-top: 1px solid var(--sps-border);
   background: var(--sps-surface);
-  font-size: 0.75rem;
-  min-height: 36px;
+  font-size: var(--sps-text-xs);
+  min-height: 32px;
+  flex-shrink: 0;
 }
 
 .segment {
   font-size: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--sps-weight-medium);
   white-space: nowrap;
 }
 
@@ -24,23 +28,35 @@
 
 .hint {
   flex: 1;
-  min-width: 120px;
+  min-width: 0;
+  overflow: hidden;
   font-size: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shortcuts {
-  font-size: 0.68rem;
-  white-space: nowrap;
+  flex: none;
   margin-left: auto;
+  font-size: var(--sps-text-2xs);
+  white-space: nowrap;
+  font-family: var(--sps-font-mono);
+  letter-spacing: -0.01em;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   .shortcuts {
     display: none;
   }
+}
 
-  .hint {
-    width: 100%;
-    flex: 1 1 100%;
+/* Phones: the bottom tool bar owns the safe-area inset. */
+@media (max-width: 767px) {
+  .bar {
+    gap: 8px;
+    min-height: 28px;
+    padding: 4px max(10px, var(--sps-safe-right)) 4px max(10px, var(--sps-safe-left));
+    font-size: var(--sps-text-2xs);
+    background: var(--sps-surface-muted);
   }
 }

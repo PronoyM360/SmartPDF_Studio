@@ -27,7 +27,7 @@ function overlapsAny(object: OverlayObject, targets: readonly SectionActionTarge
 }
 
 function describeKinds(objects: readonly OverlayObject[]): string {
-  const counts = { text: 0, image: 0, mask: 0 }
+  const counts = { text: 0, image: 0, mask: 0, annotation: 0 }
   for (const object of objects) {
     counts[object.kind] += 1
   }
@@ -35,6 +35,7 @@ function describeKinds(objects: readonly OverlayObject[]): string {
     counts.text ? `${counts.text} text box${counts.text === 1 ? '' : 'es'}` : null,
     counts.image ? `${counts.image} image${counts.image === 1 ? '' : 's'}` : null,
     counts.mask ? `${counts.mask} cover/hide/redact box${counts.mask === 1 ? '' : 'es'}` : null,
+    counts.annotation ? `${counts.annotation} annotation${counts.annotation === 1 ? '' : 's'}` : null,
   ]
     .filter(Boolean)
     .join(', ')

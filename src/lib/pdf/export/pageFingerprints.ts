@@ -1,10 +1,13 @@
 import type { PDFDocument } from 'pdf-lib'
+import type { PageRect } from '@/types'
 
 export interface PageFingerprint {
   readonly pageIndex: number
   readonly width: number
   readonly height: number
   readonly rotation: number
+  readonly mediaBox: PageRect
+  readonly cropBox: PageRect
 }
 
 const DIMENSION_TOLERANCE_PT = 0.5
@@ -20,9 +23,24 @@ export function readPdfLibPageFingerprints(doc: PDFDocument): PageFingerprint[] 
       width: page.getWidth(),
       height: page.getHeight(),
       rotation: page.getRotation().angle,
+      mediaBox: page.getMediaBox(),
+      cropBox: page.getCropBox(),
     })
   }
   return fingerprints
+}
+
+export function rectsMatch(a: PageRect, b: PageRect, tolerance = DIMENSION_TOLERANCE_PT): boolean {
+  return (
+    Math.abs(a.x - b.x) <= tolerance &&
+    Math.abs(a.y - b.y) <= tolerance &&
+    Math.abs(a.width - b.width) <= tolerance &&
+    Math.abs(a.height - b.height) <= tolerance
+  )
+}
+
+function formatBox(box: PageRect): string {
+  return `[${[box.x, box.y, box.x + box.width, box.y + box.height].map((value) => value.toFixed(1)).join(' ')}]`
 }
 
 export function comparePageFingerprints(
@@ -49,6 +67,15 @@ export function comparePageFingerprints(
       errors.push(
         `Page ${index + 1} size changed (${source.width.toFixed(1)}×${source.height.toFixed(1)} pt → ${exported.width.toFixed(1)}×${exported.height.toFixed(1)} pt).`,
       )
+    } else if (!rectsMatch(source.mediaBox, exported.mediaBox)) {
+      errors.push(
+        `Page ${index + 1} MediaBox moved (${formatBox(source.mediaBox)} → ${formatBox(exported.mediaBox)}).`,
+      )
+    }
+    if (!rectsMatch(source.cropBox, exported.cropBox)) {
+      errors.push(
+        `Page ${index + 1} CropBox changed (${formatBox(source.cropBox)} → ${formatBox(exported.cropBox)}).`,
+      )
     }
     if (
       Math.abs(source.rotation - exported.rotation) > ROTATION_TOLERANCE_DEG
@@ -61,7 +88,7 @@ export function comparePageFingerprints(
 
   if (errors.length === 0) {
     warnings.push(
-      'Page count, dimensions, and rotation match the source document.',
+      'Page count, MediaBox/CropBox and rotation match the source document.',
     )
   }
 

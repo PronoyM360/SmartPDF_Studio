@@ -4,9 +4,12 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
-  background: var(--sps-canvas);
+  background-color: var(--sps-canvas);
+  background-image: radial-gradient(var(--sps-canvas-pattern) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
+/* Horizontal padding must stay <= 24px per side: fit scale reserves 48px. */
 .canvasScroll {
   flex: 1;
   min-height: 0;
@@ -14,6 +17,7 @@
   padding: 24px 20px;
   position: relative;
   touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
 }
 
 .canvasPanReady {
@@ -25,23 +29,37 @@
   user-select: none;
 }
 
+/* flex-start + auto margins centre the page but keep it fully scrollable when zoomed past the viewport. */
 .canvasStage {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-start;
   min-height: min(100%, 480px);
   margin: 0 auto;
 }
 
+/* Never constrain or CSS-scale the page box: overlays are positioned from renderScale. */
 .pageStack {
   position: relative;
   display: inline-block;
+  flex: none;
+  margin-inline: auto;
   line-height: 0;
-  max-width: 100%;
-  border-radius: 2px;
-  box-shadow:
-    0 1px 3px rgba(15, 23, 42, 0.08),
-    0 8px 24px rgba(15, 23, 42, 0.1);
+  border-radius: 3px;
+  background: #ffffff;
+  box-shadow: var(--sps-shadow-page);
+  animation: pageIn var(--sps-duration-slow) var(--sps-ease-standard);
+}
+
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .centered {
@@ -50,6 +68,14 @@
   justify-content: center;
   min-height: min(100%, 420px);
   padding: 24px 12px;
+}
+
+.centered > [role='status'] {
+  padding: 36px 28px;
+  background: var(--sps-surface);
+  border: 1px solid var(--sps-border);
+  border-radius: var(--sps-radius-lg);
+  box-shadow: var(--sps-shadow-md);
 }
 
 .metaError {
@@ -71,17 +97,25 @@
   flex-direction: column;
   min-width: 0;
   border: 1px solid var(--sps-border);
-  border-radius: var(--sps-radius-md);
-  background: var(--sps-surface);
+  border-radius: var(--sps-radius-lg);
+  background: var(--sps-surface-sunken);
+  box-shadow: var(--sps-shadow-sm);
   overflow: hidden;
 }
 
 .paneLabel {
   display: block;
-  padding: 6px 10px;
-  font-size: 0.78rem;
-  background: var(--sps-surface-muted);
+  padding: 8px 12px;
+  font-size: var(--sps-text-2xs);
+  font-weight: var(--sps-weight-semibold) !important;
+  letter-spacing: var(--sps-tracking-caps);
+  text-transform: uppercase;
+  color: var(--sps-text-muted) !important;
+  background: var(--sps-surface);
   border-bottom: 1px solid var(--sps-border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .splitScroll {
@@ -92,14 +126,20 @@
   min-height: 280px;
 }
 
-@media (max-width: 767px) {
-  .splitRow {
-    grid-template-columns: 1fr;
-  }
+.splitScroll .pageStack {
+  box-shadow: var(--sps-shadow-md);
 }
 
 @media (max-width: 767px) {
   .canvasScroll {
     padding: 12px 8px;
+  }
+
+  .splitRow {
+    gap: 8px;
+  }
+
+  .splitScroll {
+    padding: 8px 4px;
   }
 }

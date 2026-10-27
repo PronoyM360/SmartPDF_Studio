@@ -11,6 +11,7 @@ export type TrackedChangeKind =
   | 'ocr-edit'
   | 'text-added'
   | 'image-added'
+  | 'annotation-added'
 
 /**
  * One user-visible edit, built only from what the overlays record about themselves.
@@ -135,11 +136,28 @@ export function buildTrackedChanges(overlays: readonly OverlayObject[]): Tracked
       })
       continue
     }
+    if (object.kind === 'annotation') {
+      changes.push({
+        id: object.id,
+        kind: 'annotation-added',
+        pageIndex: object.pageIndex,
+        bounds: object.bounds,
+        objectIds: [object.id],
+        title: 'Annotation added',
+        ...(object.note.trim() ? { after: clip(object.note) } : {}),
+        inExport: true,
+        note: 'Added as a PDF comment; the page content is not changed.',
+        createdAt: object.createdAt,
+      })
+      continue
+    }
     if (!isMaskOverlay(object) || linkedMaskIds.has(object.id)) {
       continue
     }
     const mode = maskModeOf(object)
-    const isSection = Boolean(object.sourceSectionId || object.label)
+    // Only masks applied to a detected or saved section count as section changes;
+    // free selections and drawn masks are areas.
+    const isSection = Boolean(object.sourceSectionId)
     changes.push({
       id: object.id,
       kind: isSection ? 'section' : 'area',
@@ -175,6 +193,7 @@ export function countTrackedChanges(changes: readonly TrackedChange[]): TrackedC
     'ocr-edit': 0,
     'text-added': 0,
     'image-added': 0,
+    'annotation-added': 0,
   }
   for (const change of changes) {
     byKind[change.kind] += 1
@@ -195,4 +214,5 @@ export const TRACKED_CHANGE_LABELS: Record<TrackedChangeKind, string> = {
   'ocr-edit': 'OCR edits',
   'text-added': 'Text added',
   'image-added': 'Images added',
+  'annotation-added': 'Annotations',
 }

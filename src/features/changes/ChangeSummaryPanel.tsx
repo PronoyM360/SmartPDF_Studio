@@ -20,6 +20,7 @@ const KIND_COLORS: Record<TrackedChangeKind, string> = {
   'ocr-edit': 'magenta',
   'text-added': 'geekblue',
   'image-added': 'green',
+  'annotation-added': 'volcano',
 }
 
 interface ChangeSummaryPanelProps {

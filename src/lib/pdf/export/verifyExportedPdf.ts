@@ -1,5 +1,12 @@
 import { PDFDocument } from 'pdf-lib'
 import {
+  compareContentRecords,
+  countAddedStrokeOperators,
+  readPageContentRecords,
+  type ContentIntegrityResult,
+  type PageContentRecord,
+} from './contentIntegrity'
+import {
   comparePageFingerprints,
   readPdfLibPageFingerprints,
   type PageFingerprint,
@@ -11,26 +18,44 @@ export interface ExportVerificationResult {
   readonly errors: readonly string[]
   readonly warnings: readonly string[]
   readonly exportedFingerprints: readonly PageFingerprint[]
+  /** Null when no source content records were supplied or the file was unreadable. */
+  readonly contentIntegrity: ContentIntegrityResult | null
+  /** Stroke operators found in drawing the export added; null when not checked. */
+  readonly addedStrokeOperators: number | null
+}
+
+export interface ContentVerificationInput {
+  readonly sourceContent: readonly PageContentRecord[]
+  readonly editedPages: ReadonlySet<number>
+  readonly flattenedPages: ReadonlySet<number>
+}
+
+function unreadable(error: string): ExportVerificationResult {
+  return {
+    ok: false,
+    readable: false,
+    errors: [error],
+    warnings: [],
+    exportedFingerprints: [],
+    contentIntegrity: null,
+    addedStrokeOperators: null,
+  }
 }
 
 /**
- * Reopens exported bytes with pdf-lib and checks structural fidelity vs the source.
+ * Reopens exported bytes with pdf-lib and checks structural fidelity vs the source:
+ * page boxes and rotation, and (when given) that original content streams survive.
  */
 export async function verifyExportedPdf(
   sourceFingerprints: readonly PageFingerprint[],
   exportedBytes: Uint8Array,
+  content?: ContentVerificationInput,
 ): Promise<ExportVerificationResult> {
   const errors: string[] = []
   const warnings: string[] = []
 
   if (exportedBytes.byteLength < 5) {
-    return {
-      ok: false,
-      readable: false,
-      errors: ['Exported file is empty or too small to be a PDF.'],
-      warnings,
-      exportedFingerprints: [],
-    }
+    return unreadable('Exported file is empty or too small to be a PDF.')
   }
 
   if (
@@ -39,13 +64,7 @@ export async function verifyExportedPdf(
     exportedBytes[2] !== 0x44 ||
     exportedBytes[3] !== 0x46
   ) {
-    return {
-      ok: false,
-      readable: false,
-      errors: ['Exported file does not begin with a PDF header (%PDF).'],
-      warnings,
-      exportedFingerprints: [],
-    }
+    return unreadable('Exported file does not begin with a PDF header (%PDF).')
   }
 
   let exportedDoc: PDFDocument
@@ -55,13 +74,7 @@ export async function verifyExportedPdf(
       updateMetadata: false,
     })
   } catch {
-    return {
-      ok: false,
-      readable: false,
-      errors: ['Exported PDF could not be parsed. The download may be corrupt.'],
-      warnings,
-      exportedFingerprints: [],
-    }
+    return unreadable('Exported PDF could not be parsed. The download may be corrupt.')
   }
 
   const exportedFingerprints = readPdfLibPageFingerprints(exportedDoc)
@@ -69,9 +82,22 @@ export async function verifyExportedPdf(
   errors.push(...structure.errors)
   warnings.push(...structure.warnings)
 
-  warnings.push(
-    'Verification checks page structure only. Link, annotation, and form field preservation depends on the PDF and viewer; export adds overlay drawing commands without rasterizing pages.',
-  )
+  let contentIntegrity: ContentIntegrityResult | null = null
+  let addedStrokeOperators: number | null = null
+  if (content) {
+    contentIntegrity = compareContentRecords(
+      content.sourceContent,
+      readPageContentRecords(exportedDoc),
+      content,
+    )
+    errors.push(...contentIntegrity.errors)
+    warnings.push(...contentIntegrity.warnings)
+    addedStrokeOperators = countAddedStrokeOperators(
+      exportedDoc,
+      content.sourceContent,
+      [...content.editedPages].filter((pageIndex) => !content.flattenedPages.has(pageIndex)),
+    )
+  }
 
   return {
     ok: errors.length === 0,
@@ -79,5 +105,7 @@ export async function verifyExportedPdf(
     errors,
     warnings,
     exportedFingerprints,
+    contentIntegrity,
+    addedStrokeOperators,
   }
 }

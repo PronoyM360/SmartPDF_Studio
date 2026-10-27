@@ -1,0 +1,32 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hint,
+.caption {
+  font-size: 0.76rem;
+  margin: 0 !important;
+}
+
+.details {
+  font-size: 0.78rem;
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+}
+
+.field :global(.ant-input-number) {
+  width: 100%;
+}

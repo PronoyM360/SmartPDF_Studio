@@ -2,7 +2,7 @@
 .compact {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -10,22 +10,32 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: var(--sps-accent-soft);
-  color: var(--sps-accent);
-  font-size: 15px;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--sps-radius-md);
+  background: linear-gradient(135deg, #3b74ff 0%, #2453d6 100%);
+  color: #ffffff;
+  font-size: 16px;
+  box-shadow:
+    0 1px 2px rgba(37, 83, 214, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .name {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: var(--sps-text-lg);
+  font-weight: var(--sps-weight-semibold);
   letter-spacing: -0.02em;
   color: var(--sps-text-strong);
   white-space: nowrap;
 }
 
+.compact .icon {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
+}
+
 .compact .name {
-  font-size: 0.88rem;
+  font-size: var(--sps-text-md);
 }

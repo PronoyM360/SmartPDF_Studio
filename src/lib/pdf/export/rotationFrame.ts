@@ -84,6 +84,33 @@ export function rotatedImagePlacement(
   }
 }
 
+/**
+ * pdf-lib `drawImage` options for an image overlay as the editor shows it: upright on
+ * screen over `bounds`, then turned `rotationDeg` clockwise about its on-screen
+ * top-left corner (Konva's rotation). Reduces to `rotatedImagePlacement` at 0°.
+ */
+export function imageOverlayPlacement(
+  bounds: PageRect,
+  pageRotation: QuarterTurn,
+  rotationDeg: number,
+): { x: number; y: number; width: number; height: number; rotateDegrees: number } {
+  const { width, height } = displaySize(bounds.width, bounds.height, pageRotation)
+  const theta = (rotationDeg * Math.PI) / 180
+  const cos = Math.cos(theta)
+  const sin = Math.sin(theta)
+  const origin = displayLocalPointToUser({ x: 0, y: 0 }, bounds, pageRotation)
+  const right = displayLocalPointToUser({ x: cos, y: sin }, bounds, pageRotation)
+  const bottomLeft = displayLocalPointToUser({ x: -height * sin, y: height * cos }, bounds, pageRotation)
+  const angle = (Math.atan2(right.y - origin.y, right.x - origin.x) * 180) / Math.PI
+  return {
+    x: bottomLeft.x,
+    y: bottomLeft.y,
+    width,
+    height,
+    rotateDegrees: ((angle % 360) + 360) % 360,
+  }
+}
+
 /** Display-local point inside `frame` → PDF user-space point. */
 export function displayLocalPointToUser(
   point: PagePoint,
