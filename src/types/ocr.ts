@@ -22,6 +22,33 @@ export interface OcrTextItem {
   readonly bounds: PageRect
   readonly kind: OcrTextKind
   readonly tags: readonly OcrTextTag[]
+  /** Estimated from glyph geometry and the line baseline (absent on older results). */
+  readonly fontSizePt?: number
+  /**
+   * Distance from the top of the item's on-screen box to the text baseline, in points.
+   * Display-oriented, so it stays correct on rotated pages.
+   */
+  readonly baselineFromTopPt?: number
+}
+
+export type OcrGranularity = 'words' | 'lines'
+
+export type PageContentKind = 'text' | 'image' | 'mixed' | 'empty'
+
+export interface PageContentAssessment {
+  readonly pageIndex: number
+  readonly kind: PageContentKind
+  /** Non-whitespace characters in the selectable text layer. */
+  readonly textCharCount: number
+  /** Share of the page covered by selectable text boxes (0–1). */
+  readonly textAreaRatio: number
+  /** Share of the page covered by painted images (0–1, overlaps counted once per image). */
+  readonly imageAreaRatio: number
+  readonly imageCount: number
+  /** Pixels per PDF point of the largest image, i.e. its effective resolution / 72. */
+  readonly dominantImagePixelsPerPoint: number | null
+  readonly lowResolution: boolean
+  readonly summary: string
 }
 
 export interface OcrPageResult {

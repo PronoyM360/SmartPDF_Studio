@@ -9,16 +9,19 @@ import {
   type ReactNode,
 } from 'react'
 import { countTaggedItems } from '@/lib/ocr/classifyOcrText'
+import { inspectPageContent } from '@/lib/ocr/inspectPageContent'
 import { mergeOcrPageResults } from '@/lib/ocr/mergeOcrPageResults'
 import { releaseOcrWorker } from '@/lib/ocr/ocrWorkerPool'
 import { OcrCancelledError, runPageOcr } from '@/lib/ocr/runPageOcr'
 import { getOcrLanguagePack } from '@/lib/ocr/languages'
 import { usePdfViewer } from '@/features/pdf-viewer/PdfViewerContext'
 import type {
+  OcrGranularity,
   OcrJobProgress,
   OcrLanguagePackId,
   OcrPageResult,
   OcrTextItem,
+  PageContentAssessment,
 } from '@/types/ocr'
 import type { PageRect } from '@/types'
 
@@ -27,6 +30,12 @@ interface OcrSessionContextValue {
   setLanguageId: (id: OcrLanguagePackId) => void
   job: OcrJobProgress
   pageResult: OcrPageResult | null
+  /** Whether the active page is selectable text, a scan, or both (null while loading). */
+  pageContent: PageContentAssessment | null
+  granularity: OcrGranularity
+  setGranularity: (granularity: OcrGranularity) => void
+  /** OCR items of the active granularity on the active page. */
+  visibleItems: readonly OcrTextItem[]
   correctedTextById: Readonly<Record<string, string>>
   setCorrectedText: (itemId: string, text: string) => void
   selectedItemId: string | null
@@ -75,10 +84,35 @@ export function OcrSessionProvider({
     null,
   )
   const [regionSelectActive, setRegionSelectActive] = useState(false)
+  const [granularity, setGranularity] = useState<OcrGranularity>('words')
+  const [contentByPage, setContentByPage] = useState<Record<number, PageContentAssessment>>({})
   const cancelRef = useRef(false)
   const runGenerationRef = useRef(0)
 
   const pageResult = resultsByPage[activePageIndex] ?? null
+  const pageContent = contentByPage[activePageIndex] ?? null
+
+  useEffect(() => {
+    if (!pdf || status !== 'ready' || contentByPage[activePageIndex]) {
+      return
+    }
+    let cancelled = false
+    void inspectPageContent(pdf, activePageIndex)
+      .then((assessment) => {
+        if (!cancelled) {
+          setContentByPage((prev) => ({ ...prev, [activePageIndex]: assessment }))
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [pdf, status, activePageIndex, contentByPage])
+
+  const visibleItems = useMemo(() => {
+    const kind = granularity === 'lines' ? 'line' : 'word'
+    return (pageResult?.items ?? []).filter((item) => (item.kind ?? 'word') === kind)
+  }, [pageResult, granularity])
 
   useEffect(() => {
     return () => {
@@ -88,6 +122,7 @@ export function OcrSessionProvider({
 
   useEffect(() => {
     setResultsByPage({})
+    setContentByPage({})
     setCorrectedTextById({})
     setSelectedItemId(null)
     setAdjustmentBounds(null)
@@ -161,6 +196,8 @@ export function OcrSessionProvider({
             pageIndex: activePageIndex,
             languageId,
             regionBounds,
+            includeLines: true,
+            nativePixelsPerPoint: pageContent?.dominantImagePixelsPerPoint ?? null,
             isCancelled: () =>
               cancelRef.current || runGenerationRef.current !== runGeneration,
             onPhase: (phase, message) => {
@@ -192,10 +229,12 @@ export function OcrSessionProvider({
             throw new OcrCancelledError()
           }
           applyResult(result)
+          const words = result.items.filter((item) => item.kind === 'word').length
+          const lines = result.items.length - words
           setJob({
             status: 'done',
             progress: 1,
-            message: `Found ${result.items.length} text region${result.items.length === 1 ? '' : 's'}.`,
+            message: `Found ${words} word${words === 1 ? '' : 's'} on ${lines} line${lines === 1 ? '' : 's'}.`,
             error: null,
           })
         } catch (cause) {
@@ -221,7 +260,7 @@ export function OcrSessionProvider({
         }
       })()
     },
-    [pdf, status, activePageIndex, languageId, applyResult, job.status],
+    [pdf, status, activePageIndex, languageId, applyResult, job.status, pageContent],
   )
 
   const runOcrOnCurrentPage = useCallback(() => {
@@ -282,7 +321,11 @@ export function OcrSessionProvider({
   )
 
   const priceMatchCount = useMemo(
-    () => countTaggedItems(pageResult?.items ?? [], 'price'),
+    () =>
+      countTaggedItems(
+        (pageResult?.items ?? []).filter((item) => item.kind === 'word'),
+        'price',
+      ),
     [pageResult],
   )
 
@@ -299,6 +342,10 @@ export function OcrSessionProvider({
       setLanguageId,
       job,
       pageResult,
+      pageContent,
+      granularity,
+      setGranularity,
+      visibleItems,
       correctedTextById,
       setCorrectedText,
       selectedItemId,
@@ -319,6 +366,9 @@ export function OcrSessionProvider({
       setLanguageId,
       job,
       pageResult,
+      pageContent,
+      granularity,
+      visibleItems,
       correctedTextById,
       setCorrectedText,
       selectedItemId,

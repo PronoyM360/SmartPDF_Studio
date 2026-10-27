@@ -104,6 +104,15 @@ interface EditorSessionContextValue {
   applyOverlayTextCorrections: (inputs: readonly OverlayTextCorrectionInput[]) => void
   getImageAssetIds: () => string[]
   collectImageAssetBytes: () => Record<string, Uint8Array>
+  /** Stores an image produced by the app (e.g. a repaired background) and returns its id. */
+  registerGeneratedImageAsset: (asset: GeneratedImageAsset) => string
+}
+
+export interface GeneratedImageAsset {
+  readonly bytes: Uint8Array
+  readonly mimeType: string
+  readonly pixelWidth: number
+  readonly pixelHeight: number
 }
 
 export type { OverlayTextCorrectionInput }
@@ -312,6 +321,20 @@ export function EditorSessionProvider({
       map[id] = asset.bytes
     }
     return map
+  }, [])
+
+  const registerGeneratedImageAsset = useCallback((input: GeneratedImageAsset): string => {
+    const id = crypto.randomUUID()
+    const blobUrl = URL.createObjectURL(new Blob([input.bytes.slice()], { type: input.mimeType }))
+    imageAssetsRef.current.set(id, {
+      id,
+      blobUrl,
+      mimeType: input.mimeType,
+      pixelWidth: input.pixelWidth,
+      pixelHeight: input.pixelHeight,
+      bytes: input.bytes,
+    })
+    return id
   }, [])
 
   const addTextObjectAtPdfPoint = useCallback(
@@ -589,6 +612,7 @@ export function EditorSessionProvider({
       applyOverlayTextCorrections,
       getImageAssetIds,
       collectImageAssetBytes,
+      registerGeneratedImageAsset,
     }),
     [
       activeToolId,
@@ -623,6 +647,7 @@ export function EditorSessionProvider({
       applyOverlayTextCorrections,
       getImageAssetIds,
       collectImageAssetBytes,
+      registerGeneratedImageAsset,
     ],
   )
 

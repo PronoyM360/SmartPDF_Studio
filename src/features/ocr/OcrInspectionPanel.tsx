@@ -6,6 +6,7 @@ import {
   Input,
   List,
   Progress,
+  Segmented,
   Select,
   Space,
   Tag,
@@ -16,7 +17,7 @@ import { OCR_LANGUAGE_PACKS } from '@/lib/ocr/languages'
 import { ocrConfidenceLabel, ocrConfidenceTier } from '@/lib/ocr/ocrConfidence'
 import { OcrEditWorkflowModal } from '@/features/ocr/OcrEditWorkflowModal'
 import { useOcrSession } from '@/features/ocr/OcrSessionContext'
-import type { OcrTextItem } from '@/types/ocr'
+import type { OcrGranularity, OcrTextItem } from '@/types/ocr'
 import styles from './OcrInspectionPanel.module.css'
 
 const { Text, Paragraph } = Typography
@@ -27,6 +28,10 @@ export function OcrInspectionPanel() {
     setLanguageId,
     job,
     pageResult,
+    pageContent,
+    granularity,
+    setGranularity,
+    visibleItems: granularityItems,
     correctedTextById,
     setCorrectedText,
     selectedItemId,
@@ -50,18 +55,15 @@ export function OcrInspectionPanel() {
     job.status === 'recognizing'
 
   const visibleItems = useMemo(() => {
-    const items = pageResult?.items ?? []
     if (filter === 'prices') {
-      return items.filter((item) => item.tags.includes('price'))
+      return granularityItems.filter((item) => item.tags.includes('price'))
     }
-    return items
-  }, [pageResult, filter])
+    return granularityItems
+  }, [granularityItems, filter])
 
   const lowConfidenceCount = useMemo(
-    () =>
-      (pageResult?.items ?? []).filter((item) => ocrConfidenceTier(item.confidence) === 'low')
-        .length,
-    [pageResult],
+    () => granularityItems.filter((item) => ocrConfidenceTier(item.confidence) === 'low').length,
+    [granularityItems],
   )
 
   const selectedItem = getSelectedItem()
@@ -90,11 +92,40 @@ export function OcrInspectionPanel() {
         overlay. The original PDF is not modified until you commit a correction.
       </Paragraph>
 
+      {pageContent ? (
+        <Alert
+          type={pageContent.kind === 'text' ? 'success' : pageContent.lowResolution ? 'warning' : 'info'}
+          showIcon
+          message={
+            pageContent.kind === 'image'
+              ? 'This page is a scan or image'
+              : pageContent.kind === 'mixed'
+                ? 'This page mixes images and selectable text'
+                : pageContent.kind === 'text'
+                  ? 'This page has selectable text'
+                  : 'No text layer or images found'
+          }
+          description={
+            <>
+              {pageContent.summary}
+              {pageContent.lowResolution
+                ? ' The scan is below 150 dpi, so expect more OCR mistakes and softer repairs.'
+                : ''}
+            </>
+          }
+          className={styles.alert}
+        />
+      ) : (
+        <Text type="secondary" className={styles.note}>
+          Checking whether this page is a scan…
+        </Text>
+      )}
+
       <Alert
         type="info"
         showIcon
-        message="Image / scan text"
-        description="Text baked into images cannot be edited like selectable PDF text. OCR finds approximate boxes; masks and overlays visually cover the old pixels."
+        message="How scan edits work"
+        description="Text baked into images cannot be edited like PDF text. OCR finds approximate boxes; an edit rebuilds the background under the old glyphs from nearby pixels and draws the new text on top. The rest of the page is left untouched."
         className={styles.alert}
       />
 
@@ -210,7 +241,17 @@ export function OcrInspectionPanel() {
         />
       ) : null}
 
-      <Space className={styles.filters}>
+      <Space className={styles.filters} wrap>
+        <Segmented
+          size="small"
+          value={granularity}
+          onChange={(value) => setGranularity(value as OcrGranularity)}
+          options={[
+            { value: 'words', label: 'Words' },
+            { value: 'lines', label: 'Lines' },
+          ]}
+          aria-label="OCR result granularity"
+        />
         <Button
           size="small"
           type={filter === 'all' ? 'primary' : 'default'}
@@ -315,7 +356,6 @@ export function OcrInspectionPanel() {
       <OcrEditWorkflowModal
         open={editModalOpen}
         item={selectedItem}
-        recognizedText={selectedItem?.text ?? ''}
         correctedText={
           selectedItem
             ? (correctedTextById[selectedItem.id] ?? selectedItem.text)

@@ -105,6 +105,10 @@ export function EditorPersistenceHost({
       documentName,
     })
   }, [overlayObjects, activePage, zoomPercent, fitMode, documentName])
+  const buildSnapshotRef = useRef(buildSnapshot)
+  useEffect(() => {
+    buildSnapshotRef.current = buildSnapshot
+  }, [buildSnapshot])
 
   useEffect(() => {
     if (!enabled) {
@@ -238,9 +242,11 @@ export function EditorPersistenceHost({
       window.clearTimeout(recoveryTimerRef.current)
       recoveryTimerRef.current = null
     }
-    lastSnapshotRef.current = buildSnapshot()
+    // Only a new document or restored session resets the baseline; depending on the
+    // snapshot itself would treat every edit as already saved and cancel autosave.
+    lastSnapshotRef.current = buildSnapshotRef.current()
     setIsDirty(false)
-  }, [documentId, sessionBaseline, enabled, buildSnapshot])
+  }, [documentId, sessionBaseline, enabled])
 
   useEffect(() => {
     onSaveReady?.(persistNow)

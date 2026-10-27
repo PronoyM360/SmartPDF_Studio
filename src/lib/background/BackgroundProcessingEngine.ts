@@ -42,26 +42,30 @@ const solidColorEngine: BackgroundProcessingEngine = {
   },
 }
 
-const inpaintEngineStub: BackgroundProcessingEngine = {
+const localRepairEngine: BackgroundProcessingEngine = {
   id: 'inpaint',
-  label: 'Inpainting (not installed)',
-  available: false,
+  label: 'Local reconstruction',
+  available: true,
   availabilityNote:
-    'No inpainting model is bundled in this build. Plug in a local engine via BackgroundProcessingEngine when available.',
-  describe() {
+    'Created from the OCR edit dialog: the region is rendered at the scan resolution and only the old glyph pixels are rebuilt from their surroundings (solid, gradient or diffusion inpainting). No machine-learning model is used.',
+  describe(context) {
+    const patched = Boolean(context.mask.backgroundPatch)
     return {
       engineId: 'inpaint',
-      description: 'Inpainting is not available in this application version.',
-      feasible: false,
+      description: patched
+        ? 'This box shows a reconstructed background patch instead of a flat fill.'
+        : 'Reconstruction is created from the OCR edit dialog; this box uses a flat fill.',
+      feasible: patched,
       warnings: [
-        'Complex backgrounds require a future on-device inpainting engine. Until then, use solid-color masks and manual refinement.',
+        'Reconstruction follows nearby pixels. Textures, photos, logos and barcodes are smoothed, not recreated.',
+        'The patch was made for its original position — moving or resizing the box misaligns it.',
       ],
     }
   },
 }
 
 export const BACKGROUND_PROCESSING_ENGINES: readonly BackgroundProcessingEngine[] =
-  [solidColorEngine, inpaintEngineStub]
+  [solidColorEngine, localRepairEngine]
 
 export function getBackgroundEngine(
   id: BackgroundEngineId,

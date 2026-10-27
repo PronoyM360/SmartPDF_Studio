@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { pdfRectToScreenRect } from '@/lib/pdf'
+import { pdfRectToScreenBounds } from '@/lib/pdf'
 import { hexToRgbaCss } from '@/lib/pdf/export/colorUtils'
 import type { PageDisplayTransform } from '@/lib/pdf'
 import type { TextOverlayObject } from '@/types/textOverlay'
@@ -21,7 +21,7 @@ export function TextInlineEditor({
   onCancel,
 }: TextInlineEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const screenRect = pdfRectToScreenRect(transform, object.bounds)
+  const screenRect = pdfRectToScreenBounds(transform, object.bounds)
 
   useEffect(() => {
     const node = textareaRef.current

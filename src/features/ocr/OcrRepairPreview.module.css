@@ -1,0 +1,24 @@
+.root {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 12px;
+}
+
+.canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--ant-color-border, #d9d9d9);
+  border-radius: 4px;
+  background: repeating-conic-gradient(#f1f5f9 0% 25%, #ffffff 0% 50%) 50% / 12px 12px;
+}

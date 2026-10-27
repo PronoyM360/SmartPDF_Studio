@@ -1,3 +1,4 @@
+import type { MaskBackgroundPatch } from './backgroundRepair'
 import type { PageRect } from './coordinates'
 import type { EditingObjectId } from './editingObjects'
 
@@ -23,8 +24,10 @@ export interface MaskOverlayObject {
   /** Human-readable origin, e.g. the section name it was applied to. */
   readonly label?: string
   readonly sourceSectionId?: string
+  /** Reconstructed background drawn instead of `fillColor` (OCR edits). */
+  readonly backgroundPatch?: MaskBackgroundPatch
 }
 
 export type MaskOverlayPatch = Partial<
-  Pick<MaskOverlayObject, 'bounds' | 'fillColor' | 'opacity' | 'mode' | 'label'>
+  Pick<MaskOverlayObject, 'bounds' | 'fillColor' | 'opacity' | 'mode' | 'label' | 'backgroundPatch'>
 >

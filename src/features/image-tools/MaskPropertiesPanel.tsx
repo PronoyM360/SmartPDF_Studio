@@ -5,6 +5,7 @@ import type { MaskMode } from '@/types/maskOverlay'
 import { useMemo } from 'react'
 import {
   BACKGROUND_PROCESSING_ENGINES,
+  getBackgroundEngine,
   getDefaultBackgroundEngine,
 } from '@/lib/background/BackgroundProcessingEngine'
 import {
@@ -74,7 +75,7 @@ export function MaskPropertiesPanel({
     })
   }
 
-  const engine = getDefaultBackgroundEngine()
+  const engine = object.backgroundPatch ? getBackgroundEngine('inpaint') : getDefaultBackgroundEngine()
   const enginePreview = engine.describe({
     pageIndex: object.pageIndex,
     region: object.bounds,
@@ -114,27 +115,37 @@ export function MaskPropertiesPanel({
           options={BACKGROUND_PROCESSING_ENGINES.map((entry) => ({
             value: entry.id,
             label: entry.label,
-            disabled: !entry.available,
+            disabled: entry.id !== engine.id,
           }))}
         />
         <Alert
           type="info"
           showIcon
-          message="Inpainting not installed"
+          message={enginePreview.description}
           description={
-            BACKGROUND_PROCESSING_ENGINES.find((entry) => entry.id === 'inpaint')
-              ?.availabilityNote
+            object.backgroundPatch
+              ? `Rebuilt with ${object.backgroundPatch.method === 'inpaint' ? 'local inpainting' : `a ${object.backgroundPatch.method} fill`} on a ${object.backgroundPatch.backgroundKind} background. Fill colour and opacity below apply only if the patch is removed.`
+              : BACKGROUND_PROCESSING_ENGINES.find((entry) => entry.id === 'inpaint')?.availabilityNote
           }
           className={styles.engineNote}
         />
+        {object.backgroundPatch ? (
+          <Button
+            size="small"
+            style={{ marginTop: 8 }}
+            onClick={() => updateMaskObject(object.id, { backgroundPatch: undefined })}
+          >
+            Use flat fill instead
+          </Button>
+        ) : null}
       </Form.Item>
 
       {enginePreview.warnings.length > 0 ? (
         <Alert
           type="info"
           showIcon
-          message="Manual masking limits"
-          description={enginePreview.warnings[0]}
+          message={object.backgroundPatch ? 'Reconstruction limits' : 'Manual masking limits'}
+          description={enginePreview.warnings.join(' ')}
           className={styles.alert}
         />
       ) : null}

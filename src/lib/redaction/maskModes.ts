@@ -62,7 +62,8 @@ export function summarizeModifications(overlays: readonly OverlayObject[]): Modi
       }
       continue
     }
-    if (amountMaskIds.has(object.id)) {
+    // Amount covers and rebuilt OCR backgrounds are part of their text edit.
+    if (amountMaskIds.has(object.id) || (object.kind === 'mask' && object.backgroundPatch)) {
       continue
     }
     if (object.kind === 'image') {

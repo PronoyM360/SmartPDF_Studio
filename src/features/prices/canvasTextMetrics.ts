@@ -40,6 +40,26 @@ export const canvasTextMetrics: PriceTextMetrics = {
   },
 }
 
+/**
+ * Width of the inked glyphs only (no side bearings), comparable to an OCR box that
+ * hugs the scanned glyphs.
+ */
+export function measureInkWidth(
+  text: string,
+  fontFamily: string,
+  fontWeight: 'normal' | 'bold',
+  fontSize: number,
+): number | null {
+  const ctx = context()
+  if (!ctx) {
+    return null
+  }
+  ctx.font = canvasFont(fontFamily, fontWeight, fontSize)
+  const metrics = ctx.measureText(text)
+  const ink = metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight
+  return Number.isFinite(ink) && ink > 0 ? ink : metrics.width
+}
+
 /** Detects whether a system font is installed by comparing against generic fallbacks. */
 export function isSystemFontAvailable(family: string): boolean {
   const ctx = context()

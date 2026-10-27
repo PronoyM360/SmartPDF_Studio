@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
-import { Layer, Rect, Stage, Text } from 'react-konva'
+import { Image as KonvaImage, Layer, Rect, Stage, Text } from 'react-konva'
 import { useEditorPreview } from '@/features/pdf-editor/EditorPreviewContext'
+import { useHtmlImage } from '@/features/image-tools/useHtmlImage'
 import { usePageViewport } from '@/features/text-tools/usePageViewport'
-import { createPageDisplayTransform, pdfRectToScreenRect } from '@/lib/pdf'
+import { createPageDisplayTransform, pdfRectToScreenBounds } from '@/lib/pdf'
 import styles from './PendingTextReplacementPreviewLayer.module.css'
 
 interface PendingTextReplacementPreviewLayerProps {
@@ -18,6 +19,8 @@ export function PendingTextReplacementPreviewLayer({
 }: PendingTextReplacementPreviewLayerProps) {
   const { pendingTextReplacement } = useEditorPreview()
   const viewport = usePageViewport(pageNumber, renderScale)
+  const patch = pendingTextReplacement?.backgroundPatch ?? null
+  const patchImage = useHtmlImage(patch?.url)
 
   const pageTransform = useMemo(() => {
     if (!viewport) {
@@ -36,8 +39,9 @@ export function PendingTextReplacementPreviewLayer({
   }
 
   const { plan, replacementText } = pendingTextReplacement
-  const maskScreen = pdfRectToScreenRect(pageTransform, plan.maskBounds)
-  const textScreen = pdfRectToScreenRect(pageTransform, plan.textBounds)
+  const maskScreen = pdfRectToScreenBounds(pageTransform, plan.maskBounds)
+  const textScreen = pdfRectToScreenBounds(pageTransform, plan.textBounds)
+  const patchScreen = patch ? pdfRectToScreenBounds(pageTransform, patch.bounds) : null
   const fontSizePx = plan.fontSize * renderScale
 
   return (
@@ -48,13 +52,22 @@ export function PendingTextReplacementPreviewLayer({
     >
       <Stage width={viewport.width} height={viewport.height} listening={false}>
         <Layer listening={false}>
+          {patchImage && patchScreen ? (
+            <KonvaImage
+              image={patchImage}
+              x={patchScreen.x}
+              y={patchScreen.y}
+              width={patchScreen.width}
+              height={patchScreen.height}
+            />
+          ) : null}
           <Rect
             x={maskScreen.x}
             y={maskScreen.y}
             width={maskScreen.width}
             height={maskScreen.height}
-            fill={plan.maskFillColor}
-            opacity={plan.maskOpacity}
+            fill={patch ? undefined : plan.maskFillColor}
+            opacity={patch ? 1 : plan.maskOpacity}
             stroke="#0ea5e9"
             dash={[6, 4]}
             strokeWidth={1.5}

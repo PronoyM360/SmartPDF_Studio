@@ -3,7 +3,7 @@ import { Layer, Rect, Stage } from 'react-konva'
 import { useOcrSession } from '@/features/ocr/OcrSessionContext'
 import { ocrConfidenceTier } from '@/lib/ocr/ocrConfidence'
 import { usePageViewport } from '@/features/text-tools/usePageViewport'
-import { createPageDisplayTransform, pdfRectToScreenRect } from '@/lib/pdf'
+import { createPageDisplayTransform, pdfRectToScreenBounds } from '@/lib/pdf'
 import styles from './OcrHighlightLayer.module.css'
 
 interface OcrHighlightLayerProps {
@@ -18,7 +18,7 @@ export function OcrHighlightLayer({
   renderScale,
 }: OcrHighlightLayerProps) {
   const viewport = usePageViewport(pageNumber, renderScale)
-  const { pageResult, selectedItemId, adjustmentBounds } = useOcrSession()
+  const { pageResult, visibleItems, selectedItemId, adjustmentBounds } = useOcrSession()
 
   const pageTransform = useMemo(() => {
     if (!viewport) {
@@ -35,6 +35,7 @@ export function OcrHighlightLayer({
     adjustmentBounds ??
     pageResult.items.find((item) => item.id === selectedItemId)?.bounds ??
     null
+  const selectedScreen = selectedBounds ? pdfRectToScreenBounds(pageTransform, selectedBounds) : null
 
   return (
     <div
@@ -44,8 +45,8 @@ export function OcrHighlightLayer({
     >
       <Stage width={viewport.width} height={viewport.height} listening={false}>
         <Layer listening={false}>
-          {pageResult.items.map((item) => {
-            const screen = pdfRectToScreenRect(pageTransform, item.bounds)
+          {visibleItems.map((item) => {
+            const screen = pdfRectToScreenBounds(pageTransform, item.bounds)
             const isSelected = item.id === selectedItemId
             const isPrice = item.tags.includes('price')
             const lowConfidence = ocrConfidenceTier(item.confidence) === 'low'
@@ -79,12 +80,12 @@ export function OcrHighlightLayer({
               />
             )
           })}
-          {selectedBounds ? (
+          {selectedScreen ? (
             <Rect
-              x={pdfRectToScreenRect(pageTransform, selectedBounds).x}
-              y={pdfRectToScreenRect(pageTransform, selectedBounds).y}
-              width={pdfRectToScreenRect(pageTransform, selectedBounds).width}
-              height={pdfRectToScreenRect(pageTransform, selectedBounds).height}
+              x={selectedScreen.x}
+              y={selectedScreen.y}
+              width={selectedScreen.width}
+              height={selectedScreen.height}
               stroke="#1d4ed8"
               dash={[6, 4]}
               strokeWidth={1.5}

@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import { Group, Rect, Text, Transformer } from 'react-konva'
 import { OVERLAY_TRANSFORMER_PROPS } from '@/features/pdf-editor/overlayTransformerStyle'
 import { clampPageRect, type PageSizePt } from '@/lib/pdf/clampPageRect'
-import { pdfRectToScreenRect, screenRectToPdfRect } from '@/lib/pdf'
+import { pdfRectToScreenBounds, screenRectToPdfRect } from '@/lib/pdf'
 import type { PageDisplayTransform } from '@/lib/pdf'
 import {
   MIN_TEXT_BOX_HEIGHT_PT,
@@ -39,7 +39,7 @@ export function TextObjectNode({
 }: TextObjectNodeProps) {
   const groupRef = useRef<Konva.Group>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
-  const screenRect = pdfRectToScreenRect(transform, object.bounds)
+  const screenRect = pdfRectToScreenBounds(transform, object.bounds)
   const fontSizePx = object.fontSize * renderScale
   const boxFill = object.backgroundColor
     ? hexToRgbaCss(object.backgroundColor, object.backgroundOpacity ?? 1)

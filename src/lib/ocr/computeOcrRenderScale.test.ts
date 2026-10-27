@@ -18,4 +18,14 @@ describe('computeOcrRenderScale', () => {
     })
     expect(scale).toBeGreaterThan(DEFAULT_OCR_RENDER_SCALE)
   })
+
+  it('renders high-resolution scans at their native density', () => {
+    // 300 dpi ≈ 4.17 px/pt.
+    expect(computeOcrRenderScale({ cropPdfRect: null, ...page, nativePixelsPerPoint: 300 / 72 })).toBeCloseTo(
+      300 / 72,
+    )
+    expect(computeOcrRenderScale({ cropPdfRect: null, ...page, nativePixelsPerPoint: 1 })).toBe(
+      DEFAULT_OCR_RENDER_SCALE,
+    )
+  })
 })

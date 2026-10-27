@@ -25,9 +25,58 @@ import {
   computeTextExportPatchBounds,
   rasterizeTextOverlayPatch,
 } from './rasterizeTextOverlayPatch'
+import {
+  displayLocalPointToUser,
+  displaySize,
+  normalizePageRotation,
+  rotatedImagePlacement,
+  type QuarterTurn,
+} from './rotationFrame'
 
 export interface ImageBytesProvider {
   (assetId: string): Uint8Array | undefined
+}
+
+function hasBackgroundPatch(mask: MaskOverlayObject): boolean {
+  return Boolean(mask.backgroundPatch) && maskModeOf(mask) === 'cover'
+}
+
+/**
+ * Draws a reconstructed background patch. The stored PNG is embedded as-is (no
+ * re-encoding), so pixels outside the repaired glyphs stay transparent.
+ */
+async function drawMaskPatch(
+  pdfDoc: PDFDocument,
+  page: PDFPage,
+  mask: MaskOverlayObject,
+  getImageBytes: ImageBytesProvider,
+  rotation: QuarterTurn,
+  warnings: string[],
+): Promise<boolean> {
+  const bytes = mask.backgroundPatch ? getImageBytes(mask.backgroundPatch.assetId) : undefined
+  if (!bytes) {
+    warnings.push(
+      `A reconstructed background on page ${mask.pageIndex + 1} is missing its image data; a flat fill was used instead.`,
+    )
+    return false
+  }
+  try {
+    const embedded = await pdfDoc.embedPng(bytes)
+    const placement = rotatedImagePlacement(mask.bounds, rotation)
+    page.drawImage(embedded, {
+      x: placement.x,
+      y: placement.y,
+      width: placement.width,
+      height: placement.height,
+      rotate: degrees(placement.rotateDegrees),
+    })
+    return true
+  } catch {
+    warnings.push(
+      `A reconstructed background on page ${mask.pageIndex + 1} could not be embedded; a flat fill was used instead.`,
+    )
+    return false
+  }
 }
 
 function drawMask(page: PDFPage, mask: MaskOverlayObject): void {
@@ -75,6 +124,7 @@ async function drawTextOverlay(
   fontCache: Map<import('pdf-lib').StandardFonts, PDFFont>,
   warnedFontFamilies: Set<string>,
   warnings: string[],
+  rotation: QuarterTurn,
 ): Promise<void> {
   // Standard PDF fonts can never be the document's embedded face, so amount edits
   // use their recorded system fallback (with its real weight) here.
@@ -100,9 +150,47 @@ async function drawTextOverlay(
   const color = hexToRgbColor(object.color)
   const lines = object.content.split('\n')
   const lineHeight = object.fontSize * TEXT_OVERLAY_LINE_HEIGHT_RATIO
-  const maxLines = Math.max(1, Math.floor(object.bounds.height / lineHeight))
 
   const spacing = object.letterSpacing ?? 0
+  if (rotation !== 0) {
+    // Lay the text out in display orientation, then map each baseline origin back to
+    // user space and counter-rotate the glyphs so they read upright on screen.
+    const box = displaySize(object.bounds.width, object.bounds.height, rotation)
+    const maxLines = Math.max(1, Math.floor(box.height / lineHeight))
+    const ascent = font.heightAtSize(object.fontSize, { descender: false })
+    for (let index = 0; index < Math.min(lines.length, maxLines); index += 1) {
+      const line = lines[index] ?? ''
+      const textWidth = font.widthOfTextAtSize(line, object.fontSize) + spacing * [...line].length
+      let x = 0
+      if (object.alignment === 'center') {
+        x = (box.width - textWidth) / 2
+      } else if (object.alignment === 'right') {
+        x = box.width - textWidth
+      }
+      const origin = displayLocalPointToUser(
+        { x, y: index * lineHeight + ascent },
+        object.bounds,
+        rotation,
+      )
+      if (spacing) {
+        page.pushOperators(pushGraphicsState(), setCharacterSpacing(spacing))
+      }
+      page.drawText(line, {
+        x: origin.x,
+        y: origin.y,
+        size: object.fontSize,
+        font,
+        color,
+        rotate: degrees(rotation),
+      })
+      if (spacing) {
+        page.pushOperators(popGraphicsState())
+      }
+    }
+    return
+  }
+
+  const maxLines = Math.max(1, Math.floor(object.bounds.height / lineHeight))
   for (let index = 0; index < Math.min(lines.length, maxLines); index += 1) {
     const line = lines[index] ?? ''
     const textWidth = font.widthOfTextAtSize(line, object.fontSize) + spacing * [...line].length
@@ -141,19 +229,28 @@ async function drawRasterizedTextPatch(
   masks: readonly MaskOverlayObject[],
   union: PageRect,
   warnings: string[],
+  rotation: QuarterTurn,
 ): Promise<boolean> {
-  // Amount patches are small, so a higher resolution keeps digits crisp when zoomed.
-  const png = await rasterizeTextOverlayPatch(text, masks, union, text.amendment ? 4 : undefined)
+  // Amount and OCR patches are small, so a higher resolution keeps glyphs crisp when zoomed.
+  const png = await rasterizeTextOverlayPatch(
+    text,
+    masks,
+    union,
+    text.amendment || text.ocrEdit ? 4 : undefined,
+    rotation,
+  )
   if (!png) {
     return false
   }
   try {
     const embedded = await pdfDoc.embedPng(png)
+    const placement = rotatedImagePlacement(union, rotation)
     page.drawImage(embedded, {
-      x: union.x,
-      y: union.y,
-      width: union.width,
-      height: union.height,
+      x: placement.x,
+      y: placement.y,
+      width: placement.width,
+      height: placement.height,
+      rotate: degrees(placement.rotateDegrees),
     })
     return true
   } catch {
@@ -177,6 +274,7 @@ export async function drawOverlaysOnPage(
   const masks = pageObjects.filter(isMaskOverlay)
   const consumedMaskIds = new Set<string>()
   let rasterizedTextExport = false
+  const rotation = normalizePageRotation(page.getRotation().angle)
 
   const fontCache = new Map<import('pdf-lib').StandardFonts, PDFFont>()
   const warnedFontFamilies = new Set<string>()
@@ -188,27 +286,34 @@ export async function drawOverlaysOnPage(
     const pairedMasks = masks.filter(
       (mask) => !consumedMaskIds.has(mask.id) && pageRectsIntersect(mask.bounds, object.bounds),
     )
-    const union = computeTextExportPatchBounds(object, pairedMasks)
+    const flatMasks: MaskOverlayObject[] = []
+    for (const mask of pairedMasks) {
+      consumedMaskIds.add(mask.id)
+      const patched =
+        hasBackgroundPatch(mask) &&
+        (await drawMaskPatch(pdfDoc, page, mask, getImageBytes, rotation, warnings))
+      if (!patched) {
+        flatMasks.push(mask)
+      }
+    }
+    const union = computeTextExportPatchBounds(object, flatMasks)
     const rasterized = await drawRasterizedTextPatch(
       pdfDoc,
       page,
       object,
-      pairedMasks,
+      flatMasks,
       union,
       warnings,
+      rotation,
     )
     if (rasterized) {
       rasterizedTextExport = true
-      for (const mask of pairedMasks) {
-        consumedMaskIds.add(mask.id)
-      }
       continue
     }
-    for (const mask of pairedMasks) {
+    for (const mask of flatMasks) {
       drawMask(page, mask)
-      consumedMaskIds.add(mask.id)
     }
-    await drawTextOverlay(pdfDoc, page, object, fontCache, warnedFontFamilies, warnings)
+    await drawTextOverlay(pdfDoc, page, object, fontCache, warnedFontFamilies, warnings, rotation)
   }
 
   if (rasterizedTextExport) {
@@ -219,7 +324,13 @@ export async function drawOverlaysOnPage(
 
   for (const object of pageObjects) {
     if (isMaskOverlay(object)) {
-      if (!consumedMaskIds.has(object.id)) {
+      if (consumedMaskIds.has(object.id)) {
+        continue
+      }
+      const patched =
+        hasBackgroundPatch(object) &&
+        (await drawMaskPatch(pdfDoc, page, object, getImageBytes, rotation, warnings))
+      if (!patched) {
         drawMask(page, object)
       }
       continue

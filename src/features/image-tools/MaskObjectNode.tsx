@@ -1,11 +1,13 @@
 import type Konva from 'konva'
 import { useEffect, useRef } from 'react'
-import { Group, Rect, Text, Transformer } from 'react-konva'
+import { Group, Image as KonvaImage, Rect, Text, Transformer } from 'react-konva'
 import { maskModeOf } from '@/lib/redaction/maskModes'
+import { useEditorSession } from '@/features/pdf-editor/EditorSessionContext'
+import { useHtmlImage } from '@/features/image-tools/useHtmlImage'
 import { OVERLAY_TRANSFORMER_PROPS } from '@/features/pdf-editor/overlayTransformerStyle'
 import { commitGroupBounds } from '@/features/pdf-editor/overlayTransform'
 import type { PageSizePt } from '@/lib/pdf/clampPageRect'
-import { pdfRectToScreenRect } from '@/lib/pdf'
+import { pdfRectToScreenBounds } from '@/lib/pdf'
 import type { PageDisplayTransform } from '@/lib/pdf'
 import type { MaskOverlayObject } from '@/types/maskOverlay'
 
@@ -32,8 +34,12 @@ export function MaskObjectNode({
 }: MaskObjectNodeProps) {
   const groupRef = useRef<Konva.Group>(null)
   const transformerRef = useRef<Konva.Transformer>(null)
-  const screenRect = pdfRectToScreenRect(transform, object.bounds)
+  const screenRect = pdfRectToScreenBounds(transform, object.bounds)
   const mode = maskModeOf(object)
+  const { getImageAsset } = useEditorSession()
+  const patchAsset =
+    object.backgroundPatch && mode === 'cover' ? getImageAsset(object.backgroundPatch.assetId) : undefined
+  const patchImage = useHtmlImage(patchAsset?.blobUrl)
   const labelBox = {
     x: Math.min(0, screenRect.width),
     y: Math.min(0, screenRect.height),
@@ -77,12 +83,20 @@ export function MaskObjectNode({
           commit(event.currentTarget as Konva.Group)
         }}
       >
+        {patchImage ? (
+          <KonvaImage
+            image={patchImage}
+            width={screenRect.width}
+            height={screenRect.height}
+            listening={false}
+          />
+        ) : null}
         <Rect
           name="mask-box"
           width={screenRect.width}
           height={screenRect.height}
-          fill={object.fillColor}
-          opacity={mode === 'cover' ? object.opacity : 1}
+          fill={patchAsset ? 'rgba(0,0,0,0.001)' : object.fillColor}
+          opacity={mode === 'cover' && !patchAsset ? object.opacity : 1}
           stroke={selected ? '#64748b' : mode === 'hide' ? '#0d9488' : undefined}
           strokeWidth={selected || mode === 'hide' ? 1 : 0}
           dash={selected || mode === 'hide' ? [4, 4] : undefined}

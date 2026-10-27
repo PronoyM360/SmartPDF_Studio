@@ -1,3 +1,4 @@
+import type { OcrEditRecord } from './backgroundRepair'
 import type { PageRect } from './coordinates'
 import type { EditingObjectId } from './editingObjects'
 import type { AmountAmendment } from './priceEditing'
@@ -24,6 +25,8 @@ export interface TextOverlayObject {
   readonly letterSpacing?: number
   /** Set when this overlay replaces a printed amount (marks the export as a modified copy). */
   readonly amendment?: AmountAmendment
+  /** Set when this overlay replaces text recognised by OCR inside an image. */
+  readonly ocrEdit?: OcrEditRecord
   readonly createdAt: number
   readonly updatedAt: number
 }

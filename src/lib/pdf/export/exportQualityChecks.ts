@@ -60,7 +60,20 @@ function item(
   return { id, title, status, detail, approximate: approximate || undefined }
 }
 
-async function probeRenderExportedPdf(bytes: Uint8Array): Promise<{
+const MAX_RENDER_PROBE_PAGES = 6
+
+/** Pages to render after export: every edited page (capped), or the first page. */
+export function renderProbePages(overlays: readonly OverlayObject[], pageCount: number): number[] {
+  const edited = [...new Set(overlays.map((object) => object.pageIndex))]
+    .filter((index) => index >= 0 && index < pageCount)
+    .sort((a, b) => a - b)
+  return edited.length > 0 ? edited.slice(0, MAX_RENDER_PROBE_PAGES) : [0]
+}
+
+async function probeRenderExportedPdf(
+  bytes: Uint8Array,
+  pageIndices: readonly number[],
+): Promise<{
   ok: boolean
   detail: string
 }> {
@@ -68,16 +81,20 @@ async function probeRenderExportedPdf(bytes: Uint8Array): Promise<{
     return { ok: false, detail: 'Render probe skipped (no browser document).' }
   }
   let pdf
+  const canvas = document.createElement('canvas')
   try {
     const opened = await openPdfDocument(bytes.slice())
     pdf = opened.pdf
-    const page = await pdf.getPage(1)
-    const canvas = document.createElement('canvas')
-    await renderPdfPage({ page, canvas, scale: 0.5, devicePixelRatio: 1 }).promise
+    for (const pageIndex of pageIndices) {
+      const page = await pdf.getPage(pageIndex + 1)
+      await renderPdfPage({ page, canvas, scale: 0.5, devicePixelRatio: 1 }).promise
+      page.cleanup()
+    }
     await pdf.cleanup()
+    const list = pageIndices.map((index) => index + 1).join(', ')
     return {
       ok: true,
-      detail: 'First page rendered in this browser using PDF.js (approximate viewer check).',
+      detail: `Reopened the exported file and rendered page ${list} with PDF.js (approximate viewer check).`,
     }
   } catch (cause) {
     if (pdf) {
@@ -86,7 +103,47 @@ async function probeRenderExportedPdf(bytes: Uint8Array): Promise<{
     const message =
       cause instanceof Error ? cause.message : 'Could not render exported PDF.'
     return { ok: false, detail: message }
+  } finally {
+    canvas.width = 0
+    canvas.height = 0
   }
+}
+
+/** Plain statement of what OCR-assisted edits are, so nobody mistakes them for originals. */
+export function ocrEditCheck(overlays: readonly OverlayObject[]): ExportQualityCheckItem | null {
+  const edits = overlays.flatMap((object) =>
+    object.kind === 'text' && object.ocrEdit ? [{ pageIndex: object.pageIndex, record: object.ocrEdit }] : [],
+  )
+  if (edits.length === 0) {
+    return null
+  }
+  const methods = new Map<string, number>()
+  for (const { record } of edits) {
+    const label =
+      record.repairMethod === 'flat-box'
+        ? 'flat cover box'
+        : record.repairMethod === 'inpaint'
+          ? 'inpainted'
+          : `${record.repairMethod} fill`
+    methods.set(label, (methods.get(label) ?? 0) + 1)
+  }
+  const complex = edits.filter(
+    ({ record }) => record.backgroundKind === 'complex' || record.backgroundKind === 'textured',
+  ).length
+  const lowConfidence = edits.filter(({ record }) => record.confidence < 60).length
+  const pages = [...new Set(edits.map((edit) => edit.pageIndex + 1))].sort((a, b) => a - b).join(', ')
+  const methodList = [...methods].map(([label, count]) => `${count} ${label}`).join(', ')
+  const extras = [
+    complex > 0 ? `${complex} sit on textured or complex backgrounds where repair is least reliable` : null,
+    lowConfidence > 0 ? `${lowConfidence} started from low-confidence OCR` : null,
+  ].filter(Boolean)
+  return item(
+    'ocr_edits',
+    'OCR-assisted edits are approximate',
+    'warning',
+    `${edits.length} OCR-assisted edit(s) on page ${pages}. Text position, size, font and colour were estimated from the scan, and backgrounds were rebuilt locally (${methodList}).${extras.length > 0 ? ` Of these, ${extras.join('; ')}.` : ''} The original scan pixels remain in the file under each patch. Compare the export with the original before sharing.`,
+    true,
+  )
 }
 
 export async function runExportQualityChecks(
@@ -358,10 +415,17 @@ export async function runExportQualityChecks(
   }
 
   checks.push(...modificationChecks(exportResult, options.markModifiedPages ?? false))
+  const ocrCheck = ocrEditCheck(validation.exportableOverlays)
+  if (ocrCheck) {
+    checks.push(ocrCheck)
+  }
 
   if (includeRender) {
-    options.onProgress?.('Rendering export preview…')
-    const render = await probeRenderExportedPdf(exportResult.bytes)
+    options.onProgress?.('Rendering edited pages from the exported file…')
+    const render = await probeRenderExportedPdf(
+      exportResult.bytes,
+      renderProbePages(validation.exportableOverlays, pageCount),
+    )
     if (render.ok) {
       checks.push(
         item(
@@ -532,6 +596,7 @@ const CHECK_ORDER = [
   'redaction',
   'redaction_elsewhere',
   'amount_edits',
+  'ocr_edits',
   'visual_covers',
   'hidden_regions',
   'modified_label',

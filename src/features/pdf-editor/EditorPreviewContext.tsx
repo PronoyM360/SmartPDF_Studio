@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { TextReplacementPlan } from '@/lib/pdf/buildTextReplacementPlan'
+import type { PageRect } from '@/types'
 
 export type WorkspacePreviewMode = 'edited' | 'original' | 'side-by-side'
 
@@ -14,6 +15,8 @@ export interface PendingTextReplacementPreview {
   readonly originalText: string
   readonly replacementText: string
   readonly plan: TextReplacementPlan
+  /** Reconstructed background shown instead of the flat mask (object URL + PDF bounds). */
+  readonly backgroundPatch?: { readonly url: string; readonly bounds: PageRect } | null
 }
 
 interface EditorPreviewContextValue {
